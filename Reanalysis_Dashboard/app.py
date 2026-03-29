@@ -384,10 +384,15 @@ def _start_job():
     """Build DataFrames and launch the background pipeline thread."""
     obs_config = st.session_state.obs_config
 
-    # Build model DataFrame for the selected variable
+    # Build model DataFrame using user-selected columns
     st.session_state.model_file.seek(0)
-    model_dfs = pipeline_bridge.build_model_df(st.session_state.model_file)
-    model_df = model_dfs[st.session_state.variable]
+    model_df = pipeline_bridge.build_model_df_generic(
+        st.session_state.model_file,
+        date_col=st.session_state.model_date_col,
+        value_col=st.session_state.model_value_col,
+    )
+    # Sync variable key for downstream consumers (results page filenames, visualization.py)
+    st.session_state.variable = st.session_state.model_value_col
 
     # Build observation DataFrame
     st.session_state.obs_file.seek(0)
