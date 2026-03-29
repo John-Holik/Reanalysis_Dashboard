@@ -28,7 +28,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User sees date column and value column dropdowns populated from their uploaded CSV headers (not a hardcoded list of Peace River variable names)
   3. User sees a preview of the first rows of both uploaded CSVs before clicking Run
   4. A synthetic non-Peace-River CSV (e.g., columns: timestamp, streamflow_cms, nitrate_mgl) runs end-to-end without a KeyError or column mismatch crash
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 01-01-PLAN.md -- Add generic bridge functions (get_csv_numeric_columns, get_csv_preview, build_model_df_generic)
+- [ ] 01-02-PLAN.md -- Rework Step 0 UI for dynamic column selection and wire _start_job()
 **UI hint**: yes
 
 ### Phase 2: Robustness and Reliability
@@ -67,11 +70,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pipeline Generalization | 0/TBD | Not started | - |
+| 1. Pipeline Generalization | 0/2 | Planned | - |
 | 2. Robustness and Reliability | 0/TBD | Not started | - |
 | 3. Output and Results | 0/TBD | Not started | - |
 | 4. Packaging and Distribution | 0/TBD | Not started | - |
