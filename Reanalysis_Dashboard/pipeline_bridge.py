@@ -90,6 +90,7 @@ def get_csv_preview(uploaded_file, nrows: int = 5) -> pd.DataFrame:
 # ---- DataFrame constructors ------------------------------------------
 
 def build_model_df(uploaded_file) -> dict:
+    # Legacy: Peace River only. Use build_model_df_generic() for arbitrary CSVs.
     """
     Parse the model CSV (columns: SimDate, Flow, TN, TP) and return a dict
     mapping variable name to a DataFrame with DatetimeIndex and 'value' column.
@@ -108,6 +109,34 @@ def build_model_df(uploaded_file) -> dict:
     for variable, col in col_map.items():
         result[variable] = df[[col]].rename(columns={col: "value"})
     return result
+
+
+def build_model_df_generic(uploaded_file, date_col: str, value_col: str) -> pd.DataFrame:
+    """
+    Parse a model CSV with arbitrary column names.
+
+    Parameters
+    ----------
+    uploaded_file : UploadedFile
+        Streamlit uploaded file object.
+    date_col : str
+        Column name containing datetime values.
+    value_col : str
+        Column name containing the numeric target variable.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with DatetimeIndex named 'time' and a single 'value'
+        column (float64). Same output contract as build_model_df()[variable].
+    """
+    buf = io.BytesIO(uploaded_file.read())
+    df = pd.read_csv(buf, encoding="utf-8-sig")
+    uploaded_file.seek(0)
+    df["time"] = pd.to_datetime(df[date_col], format="mixed", dayfirst=False)
+    df["value"] = pd.to_numeric(df[value_col], errors="coerce")
+    df = df.set_index("time")[["value"]].sort_index()
+    return df
 
 
 def build_obs_df_dedicated(uploaded_file, date_col: str, value_col: str,
