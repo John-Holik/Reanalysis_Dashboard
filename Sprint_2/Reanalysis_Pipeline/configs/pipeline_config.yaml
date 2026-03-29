@@ -1,0 +1,91 @@
+paths:
+  model_data_dir: "../../Model_Data"
+  observation_data_dir: "../../Observation_Data"
+  output_dir: "../outputs"
+
+stations:
+  - station_id: "02296750"
+    name: "Arcadia"
+    model_file: "Station 02296750 (ARCADIA)_reach000084_83.csv"
+    observations:
+      discharge:
+        file: "Oserved flow_ARCADIA_FL.csv"
+        type: "dedicated_discharge"
+        date_col: "Date"
+        value_col: "Discharge_CMS"
+        dir: "model_data_dir"  # this file lives in Model_Data/, not Observation_Data/
+      TN:
+        file: "HU8_03100101_TN_TP.csv"
+        type: "multi_station"
+        station_id_filter: "02296750"
+        parameter_filter: "TN_ugl"
+        date_col: "SampleDate"
+        value_col: "Result_Value"
+        convert_factor: 0.001  # ug/L -> mg/L
+      TP:
+        file: "HU8_03100101_TN_TP.csv"
+        type: "multi_station"
+        station_id_filter: "02296750"
+        parameter_filter: "TP_ugl"
+        date_col: "SampleDate"
+        value_col: "Result_Value"
+        convert_factor: 0.001
+
+  - station_id: "270318081593100"
+    name: "FtOgden_RM1482"
+    model_file: "Station 270318081593100_reach000004_3.csv"
+    observations:
+      discharge: null
+      TN:
+        file: "HU8_03100101_TN_TP.csv"
+        type: "multi_station"
+        station_id_filter: "270318081593100"
+        parameter_filter: "TN_ugl"
+        date_col: "SampleDate"
+        value_col: "Result_Value"
+        convert_factor: 0.001
+      TP:
+        file: "HU8_03100101_TN_TP.csv"
+        type: "multi_station"
+        station_id_filter: "270318081593100"
+        parameter_filter: "TP_ugl"
+        date_col: "SampleDate"
+        value_col: "Result_Value"
+        convert_factor: 0.001
+
+  - station_id: "02297330"
+    name: "FtOgden"
+    model_file: "Station_2297330_reach000007_6.csv"
+    observations:
+      discharge: null
+      TN:
+        file: "HU8_03100101_TN_TP.csv"
+        type: "multi_station"
+        station_id_filter: "2297330"
+        parameter_filter: "TN_ugl"
+        date_col: "SampleDate"
+        value_col: "Result_Value"
+        convert_factor: 0.001
+      TP:
+        file: "HU8_03100101_TN_TP.csv"
+        type: "multi_station"
+        station_id_filter: "2297330"
+        parameter_filter: "TP_ugl"
+        date_col: "SampleDate"
+        value_col: "Result_Value"
+        convert_factor: 0.001
+
+hyperparameters:
+  lookback: 12
+  lstm_units: 64
+  dense_units: 64
+  learning_rate: 0.001
+  batch_size: 32
+  epochs: 200
+  patience: 15
+  n_ensemble: 50
+  obs_error_factor: 0.2
+  train_fraction: 0.8
+  min_overlap_days: 30
+
+seed: 42
