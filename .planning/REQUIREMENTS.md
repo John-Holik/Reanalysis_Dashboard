@@ -8,8 +8,8 @@
 ### Data Upload
 
 - [ ] **UPLOAD-01**: User can upload a model CSV and an observation CSV from their local machine
-- [ ] **UPLOAD-02**: User can select the date column and target variable column from dropdowns auto-populated from uploaded CSV headers (model CSV) and from uploaded observation CSV headers
-- [ ] **UPLOAD-03**: User can preview the first rows of each uploaded CSV before proceeding to run
+- [x] **UPLOAD-02**: User can select the date column and target variable column from dropdowns auto-populated from uploaded CSV headers (model CSV) and from uploaded observation CSV headers
+- [x] **UPLOAD-03**: User can preview the first rows of each uploaded CSV before proceeding to run
 
 ### Pipeline Execution
 
@@ -29,7 +29,7 @@
 ### Reliability
 
 - [ ] **REL-01**: TensorFlow graph state is cleared between runs — no memory accumulation or slowdown after multiple jobs in the same session
-- [ ] **REL-02**: Pipeline accepts arbitrary CSV column names for both model and observation inputs — not hardcoded to SimDate/Flow/TN/TP or any Peace River–specific naming
+- [x] **REL-02**: Pipeline accepts arbitrary CSV column names for both model and observation inputs — not hardcoded to SimDate/Flow/TN/TP or any Peace River–specific naming
 - [ ] **REL-03**: Matplotlib uses Agg backend with explicit figure cleanup — no Windows display errors or figure registry memory leaks
 
 ## v2 Requirements
@@ -67,9 +67,9 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | UPLOAD-01 | Phase 1 | Pending |
-| UPLOAD-02 | Phase 1 | Pending |
-| UPLOAD-03 | Phase 1 | Pending |
-| REL-02 | Phase 1 | Pending |
+| UPLOAD-02 | Phase 1 | Complete |
+| UPLOAD-03 | Phase 1 | Complete |
+| REL-02 | Phase 1 | Complete |
 | EXEC-01 | Phase 2 | Pending |
 | EXEC-02 | Phase 2 | Pending |
 | EXEC-03 | Phase 2 | Pending |

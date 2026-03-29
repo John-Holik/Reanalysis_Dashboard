@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A synthetic non-Peace-River CSV (e.g., columns: timestamp, streamflow_cms, nitrate_mgl) runs end-to-end without a KeyError or column mismatch crash
 **Plans**: 2 plans
 Plans:
-- [ ] 01-01-PLAN.md -- Add generic bridge functions (get_csv_numeric_columns, get_csv_preview, build_model_df_generic)
+- [x] 01-01-PLAN.md -- Add generic bridge functions (get_csv_numeric_columns, get_csv_preview, build_model_df_generic)
 - [ ] 01-02-PLAN.md -- Rework Step 0 UI for dynamic column selection and wire _start_job()
 **UI hint**: yes
 

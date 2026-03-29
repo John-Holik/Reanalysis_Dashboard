@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: executing
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-03-29T22:56:18.905Z"
+last_activity: 2026-03-29
+progress:
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 0
+---
+
 # Project State
 
 ## Project Reference
@@ -5,20 +21,21 @@
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** A researcher with no ML background can go from raw CSVs to a calibrated reanalysis dataset with uncertainty bounds in under 30 minutes, entirely in a browser.
-**Current focus:** Phase 1 — Pipeline Generalization
+**Current focus:** Phase 01 — pipeline-generalization
 
 ## Current Position
 
-Phase: 1 of 4 (Pipeline Generalization)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-29 — Roadmap created; 12 v1 requirements mapped across 4 phases
+Phase: 01 (pipeline-generalization) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-03-29
 
 Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0
 - Average duration: —
 - Total execution time: 0 hours
@@ -30,10 +47,12 @@ Progress: [░░░░░░░░░░] 0%
 | - | - | - | - |
 
 **Recent Trend:**
+
 - Last 5 plans: —
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01 P01 | 4 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -46,6 +65,8 @@ Recent decisions affecting current work:
 - Init: Docker with python:3.13-slim chosen as distribution target; pip + venv retained as developer/fallback path
 - Init: PyInstaller explicitly ruled out (TF dynamic library incompatibility)
 - Init: Phase 4 (Packaging) flagged for a brief research pass before planning — tensorflow-cpu package name for TF 2.20 on Python 3.13 needs verification
+- [Phase 01]: Reanalysis_Dashboard gitlink absorbed into main repo as tracked files — no .gitmodules or separate .git existed, absorbing was safe
+- [Phase 01]: build_model_df_generic added alongside legacy build_model_df — backward compatibility preserved, old function annotated with Legacy comment
 
 ### Pending Todos
 
@@ -59,6 +80,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-29
-Stopped at: Roadmap created and written to disk. REQUIREMENTS.md traceability updated. Ready to run /gsd:plan-phase 1.
+Last session: 2026-03-29T22:56:18.902Z
+Stopped at: Completed 01-01-PLAN.md
 Resume file: None
