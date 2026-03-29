@@ -49,7 +49,9 @@ def _init_state():
         "obs_file": None,
         "obs_columns": [],
         "obs_config": {},
-        "variable": "discharge",
+        "variable": None,
+        "model_date_col": None,
+        "model_value_col": None,
         "station_name": "MyStation",
         "hyperparams": DEFAULT_HYPERPARAMS.copy(),
         "seed": 42,
@@ -90,21 +92,36 @@ def render_step_upload():
 
     with col1:
         st.subheader("Model CSV")
-        st.caption("Required columns: `SimDate`, `Flow`, `TN`, `TP`")
+        st.caption("Upload any CSV with a date column and a numeric value column.")
         model_file = st.file_uploader(
             "Upload model CSV", type=["csv"], key="upload_model",
             label_visibility="collapsed",
         )
         if model_file:
-            cols = pipeline_bridge.get_csv_columns(model_file)
-            required = {"SimDate", "Flow", "TN", "TP"}
-            missing = required - set(cols)
-            if missing:
-                st.error(f"Missing required columns: {', '.join(sorted(missing))}")
-                model_file = None
-            else:
-                st.success(f"Valid model CSV — {len(cols)} columns detected")
+            try:
+                cols = pipeline_bridge.get_csv_columns(model_file)
+                numeric_cols = pipeline_bridge.get_csv_numeric_columns(model_file)
+                if not numeric_cols or numeric_cols == cols:
+                    st.warning("No numeric columns detected -- verify your value column selection carefully.")
+                st.success(f"{len(cols)} columns detected")
+                preview_df = pipeline_bridge.get_csv_preview(model_file)
+                st.dataframe(preview_df, hide_index=False)
+                st.selectbox(
+                    "Date column",
+                    cols,
+                    index=_best_guess_index(cols, ["date", "time", "datetime", "simdate", "timestamp"]),
+                    key="model_date_col",
+                )
+                st.selectbox(
+                    "Value column (variable to reanalyse)",
+                    numeric_cols,
+                    index=_best_guess_index(numeric_cols, ["value", "flow", "discharge", "streamflow"]),
+                    key="model_value_col",
+                )
                 st.session_state.model_file = model_file
+            except Exception:
+                st.error("Could not read this CSV. Check that the file is UTF-8 encoded and comma-separated.")
+                model_file = None
 
     with col2:
         st.subheader("Observation CSV")
@@ -114,35 +131,33 @@ def render_step_upload():
             label_visibility="collapsed",
         )
         if obs_file:
-            cols = pipeline_bridge.get_csv_columns(obs_file)
-            st.success(
-                f"Loaded — columns: `{'`, `'.join(cols[:6])}`"
-                + (f" (+{len(cols)-6} more)" if len(cols) > 6 else "")
-            )
-            st.session_state.obs_file = obs_file
-            st.session_state.obs_columns = cols
+            try:
+                cols = pipeline_bridge.get_csv_columns(obs_file)
+                st.success(
+                    f"Loaded -- columns: `{'`, `'.join(cols[:6])}`"
+                    + (f" (+{len(cols)-6} more)" if len(cols) > 6 else "")
+                )
+                obs_preview_df = pipeline_bridge.get_csv_preview(obs_file)
+                st.dataframe(obs_preview_df, hide_index=False)
+                st.session_state.obs_file = obs_file
+                st.session_state.obs_columns = cols
+            except Exception:
+                st.error("Could not read this CSV. Check that the file is UTF-8 encoded and comma-separated.")
+                obs_file = None
 
     st.divider()
-    col3, col4 = st.columns(2)
-    with col3:
-        variable = st.selectbox(
-            "Variable to reanalyze",
-            ["discharge", "TN", "TP"],
-            index=["discharge", "TN", "TP"].index(st.session_state.variable),
-            help="Which variable from the model CSV to run the reanalysis on",
-        )
-        st.session_state.variable = variable
 
-    with col4:
-        station_name = st.text_input(
-            "Station name (used as label in outputs)",
-            value=st.session_state.station_name,
-        )
-        st.session_state.station_name = station_name
+    station_name = st.text_input(
+        "Station name (used as label in outputs)",
+        value=st.session_state.station_name,
+    )
+    st.session_state.station_name = station_name
 
     can_proceed = (
         st.session_state.model_file is not None
         and st.session_state.obs_file is not None
+        and st.session_state.get("model_date_col") is not None
+        and st.session_state.get("model_value_col") is not None
         and station_name.strip() != ""
     )
     if st.button("Next: Configure Observation CSV →", disabled=not can_proceed, type="primary"):
