@@ -66,24 +66,24 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UPLOAD-01 | — | Pending |
-| UPLOAD-02 | — | Pending |
-| UPLOAD-03 | — | Pending |
-| EXEC-01 | — | Pending |
-| EXEC-02 | — | Pending |
-| EXEC-03 | — | Pending |
-| EXEC-04 | — | Pending |
-| OUTPUT-01 | — | Pending |
-| PKG-01 | — | Pending |
-| REL-01 | — | Pending |
-| REL-02 | — | Pending |
-| REL-03 | — | Pending |
+| UPLOAD-01 | Phase 1 | Pending |
+| UPLOAD-02 | Phase 1 | Pending |
+| UPLOAD-03 | Phase 1 | Pending |
+| REL-02 | Phase 1 | Pending |
+| EXEC-01 | Phase 2 | Pending |
+| EXEC-02 | Phase 2 | Pending |
+| EXEC-03 | Phase 2 | Pending |
+| EXEC-04 | Phase 2 | Pending |
+| REL-01 | Phase 2 | Pending |
+| REL-03 | Phase 2 | Pending |
+| OUTPUT-01 | Phase 3 | Pending |
+| PKG-01 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 12 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 12 ⚠️
+- Mapped to phases: 12 (100%)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-29*
-*Last updated: 2026-03-29 after initial definition*
+*Last updated: 2026-03-29 after roadmap creation — all 12 v1 requirements mapped*
