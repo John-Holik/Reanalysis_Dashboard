@@ -1,6 +1,7 @@
 # Phase 01: Pipeline Generalization - Research
 
 **Researched:** 2026-03-29
+**Updated:** 2026-03-29 (re-verified against live codebase; all findings remain accurate)
 **Domain:** Streamlit UI refactoring — dynamic column selection, CSV preview, bridge-layer generalization
 **Confidence:** HIGH (all findings derived from direct code inspection of the live codebase; no external library speculation needed)
 
@@ -14,7 +15,9 @@ The three coupling points are: (1) `pipeline_bridge.build_model_df()` hardcodes 
 
 The approved UI-SPEC and CONTEXT.md leave very little discretion — column selection pattern, preview widget choice (`st.dataframe`), session state keys (`model_date_col`, `model_value_col`), and `_best_guess_index` auto-hint candidates are all specified. The planner's job is to sequence the four discrete file-edit tasks in the correct dependency order.
 
-**Primary recommendation:** Implement changes in dependency order — bridge new functions first, visualization fallback second, app.py UI third, `_start_job()` wire-up fourth. Each step is independently testable before the next.
+**Current state (re-verified 2026-03-29):** Both source files remain in their pre-Phase-1 state. `pipeline_bridge.py` does NOT yet have `get_csv_numeric_columns`, `get_csv_preview`, or `build_model_df_generic`. `app.py` still has the `SimDate/Flow/TN/TP` validation, the `["discharge", "TN", "TP"]` selectbox, and the old `build_model_df()` call in `_start_job()`. Plans 01-01 and 01-02 are written and ready to execute.
+
+**Primary recommendation:** Implement changes in dependency order — bridge new functions first (Plan 01), app.py UI and wire-up second (Plan 02). Each plan is independently testable before the next.
 
 ---
 
@@ -29,7 +32,7 @@ The approved UI-SPEC and CONTEXT.md leave very little discretion — column sele
 - **D-05:** Preview appears inline on Step 0, directly below each upload widget, as soon as a file is uploaded (before the user configures columns or clicks Next).
 - **D-06:** Preview shows 5 rows. Both model CSV and observation CSV get their own preview.
 - **D-07:** Preview is display-only. No editing.
-- **D-08:** `src/pipeline.py` and all modules under `src/` are not touched in Phase 1, EXCEPT `visualization.py` which needs a fallback for unknown variable names. The generalization is entirely in `Reanalysis_Dashboard/pipeline_bridge.py` and `Reanalysis_Dashboard/app.py`.
+- **D-08:** `src/pipeline.py` and all modules under `src/` are not touched in Phase 1. The generalization is entirely in `Reanalysis_Dashboard/pipeline_bridge.py` and `Reanalysis_Dashboard/app.py`.
 - **D-09:** `data_loader.py` in `src/` is used only by Jupyter notebooks — no changes needed.
 - **D-10:** `pipeline_bridge.build_obs_df_dedicated()` already accepts arbitrary `date_col` / `value_col` — reuse as-is.
 
@@ -55,6 +58,21 @@ The approved UI-SPEC and CONTEXT.md leave very little discretion — column sele
 | UPLOAD-03 | User can preview the first rows of each uploaded CSV before proceeding to run | Requires reading 5 rows from the uploaded file buffer and rendering with `st.dataframe()`. The `io.BytesIO + seek(0)` buffer pattern is already established in `pipeline_bridge.py`. |
 | REL-02 | Pipeline accepts arbitrary CSV column names for both model and observation inputs — not hardcoded to SimDate/Flow/TN/TP | Requires replacing `build_model_df()` with `build_model_df_generic(uploaded_file, date_col, value_col)`, removing the `required = {"SimDate", "Flow", "TN", "TP"}` validation in app.py, and updating `_start_job()` to pass `model_date_col` and `model_value_col` from session state. |
 </phase_requirements>
+
+---
+
+## Project Constraints (from CLAUDE.md)
+
+| Directive | Impact on Phase 1 |
+|-----------|-------------------|
+| Python + Streamlit — no framework changes | All UI work uses Streamlit native widgets only; no React, no HTML injection |
+| All public functions use `snake_case` | New bridge functions: `get_csv_numeric_columns`, `get_csv_preview`, `build_model_df_generic` |
+| NumPy-style docstrings on all public functions | New functions require Parameters/Returns docstring blocks |
+| `encoding="utf-8-sig"` on all CSV reads | All new `pd.read_csv()` calls in `pipeline_bridge.py` must include `encoding="utf-8-sig"` |
+| `io.BytesIO(uploaded_file.read())` + `uploaded_file.seek(0)` pattern | Every new CSV read in bridge must follow this pattern; no exceptions |
+| No `try/except` blocks in pipeline src modules | Does not apply to `pipeline_bridge.py` or `app.py` — those already use try/except |
+| No build system — execution via Jupyter notebooks | Not applicable to dashboard changes |
+| GSD workflow enforcement | Changes must go through execute-phase workflow |
 
 ---
 
@@ -92,8 +110,8 @@ The approved UI-SPEC and CONTEXT.md leave very little discretion — column sele
 
 ```
 Wave 1: Foundation (no risk to existing working path)
-  pipeline_bridge.py  ← add build_model_df_generic(), get_csv_numeric_columns()
-  visualization.py    ← add .get(variable, variable) fallback for UNITS/LABELS
+  pipeline_bridge.py  ← add build_model_df_generic(), get_csv_numeric_columns(), get_csv_preview()
+  tests/              ← create synthetic_model.csv and synthetic_obs.csv
 
 Wave 2: UI + Wire-up (depends on Wave 1 bridge functions)
   app.py              ← rework render_step_upload() Step 0
@@ -110,7 +128,7 @@ Wave 3: Validation
 **When to use:** Every CSV read operation in `pipeline_bridge.py`.
 
 ```python
-# Source: existing pipeline_bridge.py lines 34-37 — replicate this pattern
+# Source: existing pipeline_bridge.py lines 32-37 — replicate this pattern
 def get_csv_columns(uploaded_file) -> list:
     buf = io.BytesIO(uploaded_file.read())
     cols = pd.read_csv(buf, nrows=0, encoding="utf-8-sig").columns.tolist()
@@ -150,7 +168,8 @@ def get_csv_numeric_columns(uploaded_file) -> list:
     buf = io.BytesIO(uploaded_file.read())
     df = pd.read_csv(buf, nrows=100, encoding="utf-8-sig")
     uploaded_file.seek(0)
-    return [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+    numeric = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+    return numeric if numeric else df.columns.tolist()
 ```
 
 Note: If a CSV has only 1 numeric column, the dropdown will still show — user sees the correct pre-selection and cannot accidentally pick a non-numeric column.
@@ -161,7 +180,7 @@ Edge case: if `get_csv_numeric_columns()` returns an empty list (CSV has no nume
 
 **What:** Replace `build_model_df()` with a function that takes explicit column selections.
 **When to use:** Called from `_start_job()` after the user has selected columns.
-**Contract:** Must return `pd.DataFrame` with `DatetimeIndex` and single `"value"` column (float64). Same output contract as today's `build_model_df()`.
+**Contract:** Must return `pd.DataFrame` with `DatetimeIndex` and single `"value"` column (float64). Same output contract as today's `build_model_df()[variable]`.
 
 ```python
 # New function to add to pipeline_bridge.py
@@ -203,19 +222,18 @@ def get_csv_preview(uploaded_file, nrows: int = 5) -> pd.DataFrame:
     return df
 ```
 
-### Pattern 6: visualization.py Fallback (three-line change)
+### Pattern 6: visualization.py Fallback (already in place — no changes needed)
 
 **What:** Allow `visualization.py` to handle any `variable` string, not just `"discharge"`, `"TN"`, `"TP"`.
-**When to use:** Already handled by `.get()` with a fallback — verify both `UNITS` and `LABELS` use this.
+**Verification:** Direct inspection of `Sprint_2/Reanalysis_Pipeline/src/visualization.py` lines 22-23 confirms:
 
 ```python
-# Source: existing visualization.py lines 23-24 — already uses .get()
-# CONFIRM these use .get(variable, "") and .get(variable, variable)
-unit = UNITS.get(variable, "")      # empty string for unknown units
-label = LABELS.get(variable, variable)  # use column name itself as fallback label
+# Source: visualization.py lines 22-23 — already uses .get() on both dicts
+unit = UNITS.get(variable, "")       # empty string for unknown units
+label = LABELS.get(variable, variable)   # column name itself as fallback label
 ```
 
-All three plot functions already call `UNITS.get(variable, "")` and `LABELS.get(variable, variable)` — confirmed by direct inspection. No changes needed to `visualization.py`.
+All three plot functions (`plot_comparison`, `plot_ci_area`, `plot_model_vs_observed`) use `.get()` with fallbacks. An unknown variable name like `"streamflow_cms"` produces plots with empty unit strings in axis labels (`"streamflow_cms ()"`) — not crashes. **No changes needed to `visualization.py`.**
 
 ### Pattern 7: Session State for New Keys
 
@@ -223,29 +241,30 @@ All three plot functions already call `UNITS.get(variable, "")` and `LABELS.get(
 **When to use:** `_init_state()` in `app.py` — called once on first render.
 
 ```python
-# Add to the defaults dict in _init_state()
-"model_date_col": "",
-"model_value_col": "",
+# Add to the defaults dict in _init_state() — use None (not "") as initial value
+"model_date_col": None,
+"model_value_col": None,
 ```
 
-Replace `"variable": "discharge"` with `"model_value_col": ""` in the defaults dict (or keep `"variable"` as a derived alias that `_start_job()` computes from `model_value_col`).
+The existing `"variable": "discharge"` key should be changed to `"variable": None`. The `variable` key is set dynamically in `_start_job()` before calling `launch_job()`.
 
 ### Session State Key Rename Impact
 
 The existing `st.session_state.variable` key is referenced in:
-- `_init_state()` — set to `"discharge"` default
-- `render_step_upload()` — selectbox reads/writes it
-- `_start_job()` — passed to `launch_job()` as `variable=`
-- `render_step_results()` — used for plot filenames and CSV download names
+- `_init_state()` (line 52) — set to `"discharge"` default
+- `render_step_upload()` (lines 128-134) — selectbox reads/writes it
+- `_start_job()` (line 375, 400) — passed to `launch_job()` as `variable=`
+- `render_step_results()` (line 470, 488-511) — used for plot filenames and CSV download names
 
-After Phase 1: `st.session_state.variable` should be set to `st.session_state.model_value_col` (the selected column name). The simplest approach: in `_start_job()`, assign `st.session_state.variable = st.session_state.model_value_col` before calling `launch_job()`. This avoids touching `render_step_results()` (which uses `variable` for filenames — those filenames are already generated with the `variable` string by `visualization.py` and `postprocessing.py`).
+After Phase 1: In `_start_job()`, assign `st.session_state.variable = st.session_state.model_value_col` before calling `launch_job()`. This single line keeps all downstream consumers correct without touching `render_step_results()`.
 
 ### Anti-Patterns to Avoid
 
 - **Do not validate specific column names:** The new Step 0 must NOT check for `SimDate`, `Flow`, `TN`, or `TP`. Only verify the file is parseable as CSV (catches truly broken uploads).
-- **Do not store DataFrames in session_state:** Store only the `UploadedFile` reference and column name strings. Parse to DataFrame only in `_start_job()`. (See PITFALLS.md Anti-Pattern 3.)
+- **Do not store DataFrames in session_state:** Store only the `UploadedFile` reference and column name strings. Parse to DataFrame only in `_start_job()`.
 - **Do not call `build_model_df()` (old function) from `_start_job()`:** It will be left in place for safety but `_start_job()` must use the new `build_model_df_generic()`.
-- **Do not remove `build_model_df()` in this phase:** Removing it creates unnecessary risk. Leave it in place, add the generic version alongside.
+- **Do not remove `build_model_df()` in this phase:** Removing it creates unnecessary risk. Leave it in place, add the generic version alongside with a legacy comment.
+- **Do not initialize `model_date_col` / `model_value_col` as `""`:** Use `None`. The `can_proceed` gate checks `is not None`; if these are `""`, the gate stays closed even after selectboxes render with valid values.
 
 ---
 
@@ -285,7 +304,7 @@ Step 2.5 SKIPPED — this phase is a UI refactor/generalization, not a rename or
 
 ## Common Pitfalls
 
-### Pitfall 1: Three Coupling Points Must Change Together (Pitfall 3 from PITFALLS.md)
+### Pitfall 1: Three Coupling Points Must Change Together
 
 **What goes wrong:** If `app.py` column validation is loosened without updating `build_model_df` in `_start_job()`, the app accepts arbitrary CSVs but then crashes mid-run with `KeyError: 'Flow'` because `_start_job()` still calls the old `build_model_df()`.
 
@@ -297,49 +316,47 @@ Step 2.5 SKIPPED — this phase is a UI refactor/generalization, not a rename or
 
 ---
 
-### Pitfall 2: UploadedFile Buffer Exhaustion (Pitfall 4 from PITFALLS.md)
+### Pitfall 2: UploadedFile Buffer Exhaustion
 
 **What goes wrong:** If `get_csv_preview()` reads the buffer and the code path does not call `uploaded_file.seek(0)` after, subsequent calls to `get_csv_columns()` or `get_csv_numeric_columns()` in the same render cycle return empty data.
 
 **Why it happens:** The `UploadedFile` is a `BytesIO`-backed buffer. `read()` advances the cursor to EOF. `io.BytesIO(uploaded_file.read())` pattern copies the bytes into a new buffer, leaving the original cursor at EOF.
 
-**How to avoid:** Every function in `pipeline_bridge.py` that reads an `UploadedFile` must call `uploaded_file.seek(0)` as the last line. The preview helper must follow this same contract. The order of calls in `render_step_upload()` matters: if `get_csv_preview()` is called after `get_csv_columns()`, both need seek(0) at the end of their respective functions.
+**How to avoid:** Every function in `pipeline_bridge.py` that reads an `UploadedFile` must call `uploaded_file.seek(0)` as the last line before returning. The preview helper must follow this same contract.
 
 **Warning signs:** `EmptyDataError: No columns to parse from file` in the progress log or preview area.
 
 ---
 
-### Pitfall 3: Selectbox `key=` Conflicts with Session State
+### Pitfall 3: Selectbox `key=` Conflicts with Session State Initial Value
 
-**What goes wrong:** Using `key="model_date_col"` and `key="model_value_col"` in `st.selectbox()` means Streamlit will auto-sync the widget value to `st.session_state.model_date_col` and `st.session_state.model_value_col`. If `_init_state()` sets these keys to `""` (empty string) but the selectbox options list starts at a valid column name, Streamlit will show a blank option first and the user must manually select a value before the `can_proceed` gate opens.
+**What goes wrong:** If `_init_state()` sets `"model_date_col"` and `"model_value_col"` to `""` (empty string), Streamlit's selectbox `key=` sync will not override the empty string with a valid column name on first render. The `can_proceed` gate stays `False` indefinitely.
 
-**Why it happens:** Streamlit selectbox with `index` parameter controls the default selection — but if the `key` is already in session_state with a value not in the options list, Streamlit falls back to the `index` parameter. The empty-string initial value is not in the column options list.
+**Why it happens:** Streamlit selectbox with `index` parameter controls the default selection — but if the `key` is already in session_state with a value that is not in the options list, Streamlit uses the `index` parameter. However, the `can_proceed` check `!= ""` fails because `""` is not `None`.
 
-**How to avoid:** Use `index=_best_guess_index(...)` to set a sensible default. Do not use `""` as the initial value for these session state keys — instead, initialize to `None` and use `st.session_state.model_date_col is not None` in the `can_proceed` condition.
+**How to avoid:** Initialize `model_date_col` and `model_value_col` to `None` in `_init_state()`. Use `st.session_state.get("model_date_col") is not None` in the `can_proceed` check. Streamlit auto-populates the key to the column name at `index` when the widget renders, replacing `None`.
 
-**Warning signs:** "Next" button stays disabled even after file upload; inspecting session state shows `model_date_col = ""`.
+**Warning signs:** "Next" button stays disabled even after file upload and dropdowns appear.
 
 ---
 
 ### Pitfall 4: `variable` Session State Key Used Downstream in Results
 
-**What goes wrong:** `render_step_results()` uses `st.session_state.variable` to construct plot filenames and CSV download names (e.g., `f"{variable}_Comparison.png"`). If `_start_job()` does not propagate `model_value_col` into `variable`, the results page looks for `discharge_Comparison.png` even though the pipeline wrote `streamflow_cms_Comparison.png`.
+**What goes wrong:** `render_step_results()` uses `st.session_state.variable` to construct plot filenames (e.g., `f"{variable}_Comparison.png"`) and CSV download names. If `_start_job()` does not set `variable = model_value_col`, the results page looks for `discharge_Comparison.png` even though the pipeline wrote `streamflow_cms_Comparison.png`.
 
-**Why it happens:** `variable` is used in two places with different concerns — as the key passed to `run_single_reanalysis()` (which determines output filenames) and as the key read by `render_step_results()` (which determines which files to display). If these get out of sync, the results page shows "Plot not generated" warnings for all plots.
+**Why it happens:** `variable` is used in two places with different concerns — as the key passed to `run_single_reanalysis()` (which determines output filenames) and as the key read by `render_step_results()` (which determines which files to display).
 
-**How to avoid:** In `_start_job()`, before calling `launch_job()`, set `st.session_state.variable = st.session_state.model_value_col`. This single assignment keeps all downstream consumers correct without changes to `render_step_results()`.
+**How to avoid:** In `_start_job()`, immediately after building `model_df`, assign `st.session_state.variable = st.session_state.model_value_col`. This single line keeps all downstream consumers correct without changes to `render_step_results()`.
 
 **Warning signs:** Results page shows "Plot not generated" for all three plots. Download buttons show "Not found" for all CSVs.
 
 ---
 
-### Pitfall 5: visualization.py Fallback Already in Place
+### Pitfall 5: visualization.py Fallback Already in Place (no action needed)
 
-**What looks like a problem but isn't:** The ARCHITECTURE.md notes that `visualization.py` uses `UNITS` and `LABELS` dicts keyed on `"discharge"`, `"TN"`, `"TP"`. This sounds like it needs changing.
+**What looks like a problem but isn't:** `visualization.py` uses `UNITS` and `LABELS` dicts keyed on `"discharge"`, `"TN"`, `"TP"`. This sounds like it needs changing.
 
-**Reality:** Direct inspection of `visualization.py` confirms that all three plot functions already use `.get(variable, "")` for units and `.get(variable, variable)` for labels. An unknown variable name like `"streamflow_cms"` will produce plots with empty unit strings in axis labels (`"streamflow_cms ()"`) — not crashes. This is acceptable for Phase 1. No changes are needed to `visualization.py`.
-
-**Note for planner:** Do not include a `visualization.py` edit task in the plan. The file is already correct for this use case.
+**Reality (verified by direct inspection, lines 22-23 of visualization.py):** All three plot functions already use `.get(variable, "")` for units and `.get(variable, variable)` for labels. An unknown variable name like `"streamflow_cms"` produces plots with empty unit strings in axis labels — not crashes. **No changes to `visualization.py` are needed or should be made in Phase 1.**
 
 ---
 
@@ -370,15 +387,16 @@ def _best_guess_index(cols: list, candidates: list) -> int:
     return 0
 ```
 
-### Existing Obs Config Usage in _start_job() (model section replaces this pattern)
+### Existing _start_job() Model Block (lines 372-375 — REPLACE this block in Plan 02)
 
 ```python
-# Source: app.py lines 373-376 (current — REPLACE this block)
+# Source: app.py lines 372-375 (confirmed — current pre-Phase-1 state)
+# Build model DataFrame for the selected variable
 st.session_state.model_file.seek(0)
 model_dfs = pipeline_bridge.build_model_df(st.session_state.model_file)
 model_df = model_dfs[st.session_state.variable]
 
-# REPLACE WITH:
+# REPLACE WITH (Plan 02):
 st.session_state.model_file.seek(0)
 model_df = pipeline_bridge.build_model_df_generic(
     st.session_state.model_file,
@@ -413,6 +431,30 @@ st.selectbox(
 # After this widget renders, st.session_state.model_date_col == selected column name
 ```
 
+### Existing _init_state Defaults (lines 46-63 — requires partial update in Plan 02)
+
+```python
+# Source: app.py lines 46-63 (confirmed current state)
+defaults = {
+    "step": 0,
+    "model_file": None,
+    "obs_file": None,
+    "obs_columns": [],
+    "obs_config": {},
+    "variable": "discharge",   # ← change to None
+    "station_name": "MyStation",
+    "hyperparams": DEFAULT_HYPERPARAMS.copy(),
+    "seed": 42,
+    "job_result": None,
+    "progress_queue": None,
+    "job_thread": None,
+    "progress_log": [],
+    # ADD:
+    # "model_date_col": None,
+    # "model_value_col": None,
+}
+```
+
 ---
 
 ## State of the Art
@@ -423,26 +465,21 @@ st.selectbox(
 | `st.beta_columns()` | `st.columns()` | Streamlit 1.0 | Stable; already used correctly in existing code |
 
 **Deprecated / not applicable:**
-- `st.table()`: Use `st.dataframe()` for previews — horizontally scrollable, no deprecation risk, recommended in UI-SPEC.
+- `st.table()`: Use `st.dataframe()` for previews — horizontally scrollable, no deprecation risk, required by UI-SPEC.
 
 ---
 
 ## Open Questions
 
 1. **What happens if the model CSV has no numeric columns at all?**
-   - What we know: `get_csv_numeric_columns()` would return `[]`; the value dropdown would be empty.
-   - What's unclear: Streamlit's behavior when `options=[]` is passed to `st.selectbox` (may raise or show blank).
-   - Recommendation: If `get_csv_numeric_columns()` returns empty, fall back to `get_csv_columns()` (all columns) and show a `st.warning("No numeric columns detected — select carefully.")`. This is a rare edge case but simple to guard.
+   - What we know: `get_csv_numeric_columns()` returns `[]`; the fallback returns all columns; the value dropdown shows all columns.
+   - Resolution: Show `st.warning("No numeric columns detected — verify your value column selection carefully.")` when the fallback triggers. Implemented in Plan 02 Task 1.
 
 2. **Should `build_model_df()` (old function) be left in place or deprecated with a comment?**
-   - What we know: D-08 says not to break existing code paths; nothing currently calls it from the dashboard (after `_start_job()` is updated).
-   - What's unclear: Whether any future test or notebook might call it.
-   - Recommendation: Leave it in place with a `# Legacy: Peace River only. Use build_model_df_generic() for arbitrary CSVs.` comment. Do not delete.
+   - Resolution: Leave it in place with a `# Legacy: Peace River only. Use build_model_df_generic() for arbitrary CSVs.` comment. Do not delete.
 
 3. **What does `can_proceed` look like when `key=` widgets auto-manage session state?**
-   - What we know: When using `key="model_date_col"`, Streamlit sets `st.session_state.model_date_col` automatically on first render to the option at `index`.
-   - What's unclear: Whether the key is populated before or after the widget renders (i.e., will `can_proceed` be `True` on the first render after upload?).
-   - Recommendation: Check `st.session_state.get("model_date_col", "") != ""` in `can_proceed`. On first render, the widget at `index=0` initializes the key to the first column name, so `can_proceed` should be `True` as soon as both files are uploaded and both dropdowns have rendered.
+   - Resolution: Initialize `model_date_col` and `model_value_col` to `None` in `_init_state()`. Use `st.session_state.get("model_date_col") is not None` in `can_proceed`. On first render, the widget at `index=0` initializes the key to the first column name, so `can_proceed` becomes `True` as soon as both files are uploaded and both dropdowns have rendered.
 
 ---
 
@@ -457,7 +494,7 @@ st.selectbox(
 | Quick run command | Manual smoke-test: launch `streamlit run Reanalysis_Dashboard/app.py` and upload synthetic CSV |
 | Full suite command | Manual end-to-end: upload synthetic CSV through all 5 wizard steps |
 
-### Phase Requirements → Test Map
+### Phase Requirements to Test Map
 
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|-------------|
@@ -466,9 +503,7 @@ st.selectbox(
 | UPLOAD-03 | 5-row preview appears below each upload widget | smoke | Manual — verify `st.dataframe` preview renders immediately after upload | No automated test |
 | REL-02 | End-to-end run completes without KeyError on non-Peace-River CSV | integration | Manual — run full pipeline with synthetic CSV `(timestamp, streamflow_cms)` and verify output CSVs contain `streamflow_cms` in filenames | No automated test |
 
-### Synthetic Test CSV (for smoke-testing)
-
-Create a minimal CSV with non-Peace-River column names to validate end-to-end:
+### Synthetic Test CSV (for smoke-testing — created in Plan 01 Task 0)
 
 ```
 timestamp,streamflow_cms,nitrate_mgl
@@ -488,7 +523,7 @@ Required properties: date column named `timestamp` (not `SimDate`), numeric colu
 ### Wave 0 Gaps
 
 - [ ] No automated test infrastructure exists — all validation is manual. Acceptable per project scope (Jupyter notebook / local research tool). Consider adding a `test_bridge.py` with pytest unit tests for `build_model_df_generic()` in a future phase.
-- [ ] Synthetic test CSV files need to be created: `tests/synthetic_model.csv` and `tests/synthetic_obs.csv`. These are smoke-test data files, not test code.
+- [ ] Synthetic test CSV files need to be created: `tests/synthetic_model.csv` and `tests/synthetic_obs.csv`. Created in Plan 01, Task 0.
 
 ---
 
@@ -496,12 +531,10 @@ Required properties: date column named `timestamp` (not `SimDate`), numeric colu
 
 ### Primary (HIGH confidence)
 
-- Direct inspection of `Reanalysis_Dashboard/pipeline_bridge.py` — all function signatures, buffer patterns, encoding usage
-- Direct inspection of `Reanalysis_Dashboard/app.py` — all coupling points, session state structure, `_best_guess_index`, `_start_job()` flow
+- Direct inspection of `Reanalysis_Dashboard/pipeline_bridge.py` — all function signatures, buffer patterns, encoding usage (re-verified 2026-03-29: file unchanged from original research)
+- Direct inspection of `Reanalysis_Dashboard/app.py` — all coupling points, session state structure, `_best_guess_index`, `_start_job()` flow (re-verified 2026-03-29: file unchanged, still in pre-Phase-1 state)
 - Direct inspection of `Reanalysis_Dashboard/job_runner.py` — `launch_job()` signature confirms `variable` parameter name
-- Direct inspection of `Sprint_2/Reanalysis_Pipeline/src/visualization.py` — confirmed `.get(variable, "")` fallback already in place on all UNITS/LABELS lookups
-- `.planning/research/ARCHITECTURE.md` — precise coupling inventory with line numbers, recommended build order
-- `.planning/research/PITFALLS.md` — pitfall catalogue with file/line citations
+- Direct inspection of `Sprint_2/Reanalysis_Pipeline/src/visualization.py` lines 22-23 — confirmed `.get(variable, "")` and `.get(variable, variable)` fallback already in place on all UNITS/LABELS lookups
 - `.planning/phases/01-pipeline-generalization/01-CONTEXT.md` — locked decisions D-01 through D-10
 - `.planning/phases/01-pipeline-generalization/01-UI-SPEC.md` — widget contract, session state keys, copy, layout
 - Python introspection of Streamlit 1.55.0: `inspect.signature(st.dataframe)`, `inspect.signature(st.selectbox)` — confirmed available parameters
@@ -520,10 +553,11 @@ Required properties: date column named `timestamp` (not `SimDate`), numeric colu
 ## Metadata
 
 **Confidence breakdown:**
-- Standard stack: HIGH — confirmed by `pip show streamlit`, `python -c "import streamlit; print(streamlit.__version__)"`, and direct import inspection
+- Standard stack: HIGH — confirmed by `pip show streamlit`, direct import inspection, and package version outputs
 - Architecture patterns: HIGH — derived from direct code inspection of all four modified files; zero speculation
 - Pitfalls: HIGH — all pitfalls grounded in specific file/line citations from the existing codebase
 - Validation: MEDIUM — no automated tests exist; validation is manual smoke-testing
 
 **Research date:** 2026-03-29
+**Re-verified:** 2026-03-29 — both source files confirmed unchanged from original research; all code patterns, line numbers, and architectural findings remain accurate
 **Valid until:** 2026-04-28 (30 days; Streamlit and pandas APIs are stable at these versions)
