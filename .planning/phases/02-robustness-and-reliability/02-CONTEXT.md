@@ -1,77 +1,113 @@
-# Phase 2: Robustness and Reliability - Context
+# Phase 2: HTML App Migration and Reliability - Context
 
-**Gathered:** 2026-03-29
+**Gathered:** 2026-03-30
 **Status:** Ready for planning
 
 <domain>
 ## Phase Boundary
 
-Harden the running and completion experience so the app is safe to demonstrate. Targets:
-pipeline error messages are legible to non-technical users; running jobs can be cancelled
-cleanly; repeated runs in the same session do not degrade performance due to TF graph
-accumulation or Matplotlib figure leaks. The pipeline core (`src/`) is not touched — all
-changes are in `Reanalysis_Dashboard/app.py`, `Reanalysis_Dashboard/job_runner.py`, and
-`Reanalysis_Dashboard/pipeline_bridge.py`.
+Replace the Streamlit UI (`Reanalysis_Dashboard/app.py`) with a FastAPI + Alpine.js +
+Tailwind CSS web app that delivers the same 4-step wizard workflow. At the same time,
+deliver all Phase 2 reliability features: live log streaming via SSE, plain-English error
+messages, stop/cancel, and multi-run memory safety.
+
+**What changes:**
+- `Reanalysis_Dashboard/app.py` → deleted / replaced by `Reanalysis_Dashboard/server.py`
+- New `Reanalysis_Dashboard/static/index.html` (Alpine.js wizard UI)
+- New `Reanalysis_Dashboard/static/app.js` (optional — JS may be inline)
+- New `Reanalysis_Dashboard/static/style.css` (optional — Tailwind handles most styling)
+
+**What is UNCHANGED (reused as-is or with minor adaptation):**
+- `Reanalysis_Dashboard/pipeline_bridge.py` — all bridge helpers reusable
+- `Reanalysis_Dashboard/job_runner.py` — thread + queue pattern is framework-agnostic
+- `Sprint_2/Reanalysis_Pipeline/src/` — pipeline core is completely untouched
 
 </domain>
 
 <decisions>
 ## Implementation Decisions
 
-### Error Display (EXEC-03)
+### Framework Choice
 
-- **D-01:** When the pipeline fails, show a single generic plain-English message: "The
-  pipeline encountered an error." No error categorization or specific guidance per error type.
-- **D-02:** The full Python traceback is placed in a collapsible `st.expander("Show technical
-  details")` below the generic message — visible to technical users for debugging, hidden by
-  default for non-technical users.
-- **D-03:** No attempt to parse or classify the exception type for a custom message. One
-  message covers all failures.
+- **D-01:** Backend: **FastAPI** with `uvicorn` as the ASGI server. Chosen for native async
+  support and first-class SSE, which is the cleanest mechanism for streaming pipeline logs.
+- **D-02:** Frontend: **Alpine.js** (CDN) for reactive wizard state management and
+  **Tailwind CSS** (CDN play script) for styling. No npm, no build step — all dependencies
+  are `<script>` tags in `index.html`.
+- **D-03:** App launches with `python server.py` (uvicorn embedded) or
+  `uvicorn server:app --reload`. Streamlit is no longer required or used.
+
+### File Structure
+
+- **D-04:** Entry point is `Reanalysis_Dashboard/server.py` — FastAPI app with all API routes.
+- **D-05:** Static files served from `Reanalysis_Dashboard/static/` via
+  `StaticFiles(directory="static")` mounted at `/static`.
+- **D-06:** `GET /` returns `static/index.html` directly.
+
+### Wizard Structure (4 Steps)
+
+- **D-07:** Same 4-step wizard preserved: Step 0 (Upload), Step 1 (Configure), Step 2
+  (Running), Step 3 (Results). Alpine.js `x-data` on `<body>` holds current step and all
+  form state (replaces `st.session_state`).
+- **D-08:** Alpine.js manages all step transitions, form state, and conditional rendering via
+  `x-show`, `x-bind`, and `@click` directives. No page reloads.
+
+### File Upload
+
+- **D-09:** HTML `<input type="file" accept=".csv">` for model and observation CSV uploads.
+- **D-10:** On file selection, JS sends a `FormData` POST to `/api/preview-csv` to get column
+  names + first-5-rows preview. Response populates the Alpine state (column dropdowns + preview
+  table). This replaces the Streamlit `st.file_uploader()` + `get_csv_columns()` pattern.
+- **D-11:** The actual CSV bytes are held in Alpine state (as `File` objects) and re-sent when
+  the user submits the run in a `FormData` POST to `/api/start-run`.
+
+### Live Log Streaming (EXEC-01, EXEC-02)
+
+- **D-12:** Live streaming is implemented as **Server-Sent Events (SSE)** via a
+  `GET /api/run-stream` endpoint. The frontend connects with `new EventSource('/api/run-stream')`.
+- **D-13:** SSE replaces the Streamlit `time.sleep(2)` + `st.rerun()` polling pattern entirely.
+  The `EventSource` connection pushes log lines to the browser as they arrive — no polling.
+- **D-14:** `job_runner.py`'s progress queue is drained by the SSE endpoint's async generator.
+  The `__DONE__`, `__ERROR__`, and `__CANCELLED__` sentinel strings are forwarded as SSE
+  event types (`event: done`, `event: error`, `event: cancelled`) so the frontend can react.
 
 ### Stop / Cancel (EXEC-04)
 
-- **D-04:** A `threading.Event` stop-signal is passed into the worker thread at launch. The
-  worker checks this event between pipeline steps (after each of the 11 numbered steps in
-  `pipeline.py`). When signaled, the worker exits early and sends `__CANCELLED__` to the
-  progress queue rather than `__DONE__` or `__ERROR__`.
-- **D-05:** The UI shows a "Cancelling..." state while waiting for the thread to acknowledge
-  the stop signal. The Stop button is replaced with a spinner + "Waiting for pipeline to reach
-  a safe checkpoint..." message.
-- **D-06:** Once `__CANCELLED__` is received, the app returns to **Step 0** (upload screen).
-  All uploaded files, column selections, dataset name, and hyperparams are preserved — the
-  user can immediately re-run with different settings without re-uploading.
-- **D-07:** A daemon thread that has been signalled to stop but hasn't yet acknowledged (e.g.,
-  mid-LSTM training epoch) cannot be forcefully killed. The UI must wait. This is acceptable
-  — LSTM typically exits within seconds of an epoch completing.
+- **D-15:** Same threading.Event stop-signal pattern as originally designed: a
+  `threading.Event` is passed into the worker thread at launch and checked between each of
+  the 11 pipeline steps in `run_single_reanalysis()`.
+- **D-16:** The frontend sends `POST /api/cancel` to signal cancellation. The server sets the
+  stop event. The SSE stream sends `event: cancelled` when the worker acknowledges.
+- **D-17:** On `event: cancelled`, Alpine.js returns the wizard to Step 0, preserving all
+  uploaded files and hyperparameter state.
 
-### State Preservation Between Runs (REL-01 / multi-run UX)
+### Error Display (EXEC-03)
 
-- **D-08:** When starting a new run (either after Stop or via "Run Another Analysis"),
-  **preserve**: uploaded file objects, column selections (`model_date_col`, `model_value_col`,
-  `obs_date_col`, `obs_value_col`), dataset name, and hyperparams.
-- **D-09:** **Clear before new run**: `job_result`, `progress_queue`, `job_thread`,
-  `progress_log`, any previous `output_dir` temp directory contents, and TF graph state.
-- **D-10:** TF graph state cleared via `tf.keras.backend.clear_session()` followed by
-  `gc.collect()`. This must happen in the **main thread** before launching the new background
-  thread (calling it from the worker thread risks clearing a graph the worker is still using).
-- **D-11:** Previous temp output dir is deleted (`shutil.rmtree`) before the new job launches
-  to prevent disk accumulation across multiple runs.
+- **D-18:** On pipeline failure, show one plain-English message: "The pipeline encountered an
+  error." with the Python traceback hidden in a `<details>` / `<summary>` collapsible element.
+- **D-19:** No per-error-type categorization. One generic message covers all failures.
+
+### State Preservation Between Runs (REL-01)
+
+- **D-20:** When starting a new run (after cancel or after completing a run), Alpine.js
+  **preserves**: uploaded File objects, column selections, dataset name, hyperparams.
+- **D-21:** Server-side: TF graph cleared via `tf.keras.backend.clear_session()` + `gc.collect()`
+  in the main thread before launching a new job. Previous temp output dir deleted via
+  `shutil.rmtree(..., ignore_errors=True)`.
 
 ### Matplotlib Cleanup (REL-03)
 
-- **D-12:** `matplotlib.pyplot.close('all')` is called after each run completes (in the
-  worker thread, after `visualization.py` finishes). This clears the figure registry and
-  prevents memory leaks across runs.
-- **D-13:** The Agg backend is already set in `pipeline_bridge.py` (`matplotlib.use("Agg")`
-  before any other import). No change needed there.
+- **D-22:** `matplotlib.pyplot.close('all')` called at end of each worker run (success, error,
+  or cancelled). The Agg backend is already set in `pipeline_bridge.py` — no change needed.
 
 ### Claude's Discretion
 
-- Exact checkpoint locations within the worker thread where the stop-event is checked
-  (between pipeline steps is sufficient — no need to interrupt mid-step).
-- Whether to show a progress spinner or a static text message during "Cancelling..." state.
-- Exact wording of the "Cancelling..." UI message.
-- Whether `gc.collect()` is called once or twice (common pattern after `clear_session()`).
+- Exact Tailwind CSS classes and visual polish for the wizard steps.
+- Whether JS lives inline in `index.html` or in a separate `static/app.js`.
+- Whether `gc.collect()` is called once or twice after `clear_session()`.
+- Exact wording of all UI messages (uploading, running, cancelling, done, error).
+- Session management: whether `/api/start-run` accepts a session token or the server
+  maintains a single global job slot (acceptable for single-user local tool).
 
 </decisions>
 
@@ -80,91 +116,57 @@ changes are in `Reanalysis_Dashboard/app.py`, `Reanalysis_Dashboard/job_runner.p
 
 **Downstream agents MUST read these before planning or implementing.**
 
-### Existing Dashboard Code
-- `Reanalysis_Dashboard/job_runner.py` — Worker thread, `_QueueWriter`, `launch_job()`;
-  primary target for stop-event and TF cleanup changes
-- `Reanalysis_Dashboard/app.py` — `render_step_running()` (Stop button UI, Cancelling state),
-  `_start_job()` (TF clear + temp dir cleanup before launch), `render_step_results()`
-  ("Run Another Analysis" state reset logic)
-- `Reanalysis_Dashboard/pipeline_bridge.py` — Matplotlib Agg backend already set here;
-  `plt.close('all')` cleanup should be called from worker after visualization completes
+### Existing Bridge + Runner (primary targets for adaptation)
+- `Reanalysis_Dashboard/pipeline_bridge.py` — Reuse all CSV helpers; adapt to accept
+  `bytes`/`io.BytesIO` instead of Streamlit's `UploadedFile` objects (or wrap bytes in
+  a BytesIO shim with `.read()` and `.seek()` to maintain compatibility)
+- `Reanalysis_Dashboard/job_runner.py` — Reuse thread + queue pattern; SSE endpoint
+  reads from `progress_queue`; adapt `launch_job()` to also accept a `stop_event`
 
-### Pipeline Core (read-only)
-- `Sprint_2/Reanalysis_Pipeline/src/pipeline.py` — 11 numbered steps
-  (`# --- Step N: ... ---`) are the natural checkpoint locations for stop-event checks;
-  `run_single_reanalysis()` signature must be extended to accept a stop event
+### Pipeline Core (read-only reference)
+- `Sprint_2/Reanalysis_Pipeline/src/pipeline.py` — 11 numbered steps are natural
+  stop-event checkpoint locations; `run_single_reanalysis()` signature must accept
+  `stop_event: threading.Event = None`
 
 ### Requirements
 - `.planning/REQUIREMENTS.md` — EXEC-01 through EXEC-04, REL-01, REL-03
 
-### Known Concerns (relevant to this phase)
-- `.planning/codebase/CONCERNS.md` — "No error handling for empty val set after train/val
-  split" and "compute_obs_error can produce R=0 if only one observation" — these surface as
-  pipeline crashes that will be caught by the new generic error handler
+### Existing App (for reference, will be replaced)
+- `Reanalysis_Dashboard/app.py` — Current Streamlit app; reference for wizard step
+  structure, hyperparameter defaults, column mapping logic, and session state keys
 
 </canonical_refs>
-
-<code_context>
-## Existing Code Insights
-
-### Reusable Assets
-- `job_runner.py:_QueueWriter` — Already redirects stdout to queue; extend rather than replace
-- `job_runner.py:JobStatus` enum — Add `CANCELLED` status alongside existing `DONE`/`ERROR`
-- `job_runner.py:JobResult` — Add `cancelled: bool = False` field
-- `app.py:render_step_running()` — Already drains queue on each rerun; add `__CANCELLED__`
-  sentinel handling alongside existing `__DONE__` and `__ERROR__` branches
-
-### Established Patterns
-- `time.sleep(2)` + `st.rerun()` polling loop — keep this; `st.fragment(run_every=N)` is
-  flagged as LOW confidence in STATE.md
-- `st.session_state` for all inter-step state — all new state (stop_event, cancelling flag)
-  must go through session state to persist across reruns
-- Sentinel strings in queue (`__DONE__`, `__ERROR__`) — add `__CANCELLED__` as third sentinel
-
-### Integration Points
-- `launch_job()` must accept and thread the stop `threading.Event` through to
-  `_run_pipeline_in_thread`, which passes it to `run_single_reanalysis()`
-- `run_single_reanalysis()` signature change: add `stop_event: threading.Event = None`
-  parameter; check `stop_event.is_set()` at each of the 11 step boundaries
-- `_start_job()` in `app.py` is where TF `clear_session()` + `gc.collect()` + temp dir
-  cleanup must happen before `launch_job()` is called
-
-</code_context>
 
 <specifics>
 ## Specific Ideas
 
-- The stop-event check in `run_single_reanalysis()` should raise a custom
-  `PipelineCancelledError` (or just `InterruptedError`) that the worker thread catches
-  separately from other exceptions — so it sends `__CANCELLED__` rather than `__ERROR__`.
-- The "Cancelling..." UI state needs its own session state flag (`st.session_state.cancelling
-  = True`) set when the Stop button is clicked, so the rerun loop shows the waiting message
-  instead of the normal log display.
-- `shutil.rmtree(output_dir, ignore_errors=True)` is the safe way to delete the previous
-  temp dir — `ignore_errors=True` handles the case where some files are still locked by
-  the OS after the run.
+- FastAPI `StreamingResponse` with `media_type="text/event-stream"` is the SSE mechanism.
+- Alpine.js `x-data="{ step: 0, modelFile: null, obsFile: null, columns: {}, params: {...} }"`
+  on `<body>` gives a single reactive state tree.
+- `<details><summary>Show technical details</summary><pre>{{ errorTrace }}</pre></details>`
+  is the collapsible traceback pattern — works in all browsers, zero JS required.
+- `pipeline_bridge.py` functions that accept `file` arguments expect an object with `.read()`
+  and `.seek()` — wrapping `bytes` in `io.BytesIO` is a one-line shim.
+- For single-user local tool, a module-level `_current_job` dict in `server.py` is sufficient
+  state management (no Redis, no sessions).
 
 </specifics>
 
 <deferred>
 ## Deferred Ideas
 
-- **Per-error-type guidance** — Detecting ValueError vs MemoryError vs data shape errors and
-  showing specific fix suggestions. Deferred: generic fallback covers the demo use case, and
-  specific categorization requires mapping many exception types.
-- **Progress percentage within a step** — Showing epoch progress during LSTM training (e.g.,
-  "Epoch 47/200"). The pipeline already prints per-epoch loss via Keras verbose mode — could
-  be captured. Deferred to keep Phase 2 scope tight; the step counter added in Phase 1 is
-  sufficient for the demo.
-- **Concurrent run protection** — Disabling the Run button while a job is in progress
-  (separate from cancellation). Currently a user could theoretically trigger two jobs by
-  navigating back and hitting Run again. Deferred: the stop-event approach makes this safe
-  enough for a demo context.
+- **Per-error-type guidance** — Detecting ValueError vs MemoryError and showing specific fix
+  suggestions. Generic fallback covers the demo use case.
+- **Progress percentage within a step** — Epoch progress during LSTM training. Step-level
+  streaming via SSE is sufficient for the demo.
+- **Concurrent run protection** — Disabling Start while a job is running. Acceptable for
+  single-user local tool; the cancel endpoint makes double-run safe enough.
+- **Dark mode / theming** — Tailwind makes this easy to add later but out of scope for Phase 2.
 
 </deferred>
 
 ---
 
 *Phase: 02-robustness-and-reliability*
-*Context gathered: 2026-03-29*
+*Context updated: 2026-03-30 (replaced Streamlit hardening context with HTML migration context)*
 *Next step: `/gsd:plan-phase 2`*
