@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-30T23:40:51.190Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-03-30T23:47:41.472Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 4
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-29)
 ## Current Position
 
 Phase: 02 (robustness-and-reliability) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-03-30
 
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 01 P01 | 4 | 3 tasks | 3 files |
 | Phase 02 P01 | 8 | 2 tasks | 4 files |
+| Phase 02 P02 | 8 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Recent decisions affecting current work:
 - [Phase 02]: FastAPI stack replaces Streamlit — streamlit removed from requirements.txt, FastAPI/uvicorn/multipart/aiofiles added
 - [Phase 02]: stop_event uses threading.Event + InterruptedError protocol for clean cancellation separation in pipeline.py
 - [Phase 02]: _BytesShim uses no-op seek() since bridge functions wrap in BytesIO internally
+- [Phase 02]: tensorflow imported inside /api/start-run handler body to avoid TF init cost at server startup
+- [Phase 02]: StaticFiles mount placed after all route definitions to prevent /api/* route shadowing
+- [Phase 02]: _BytesShim re-instantiated per bridge call since seek() is no-op
 
 ### Pending Todos
 
@@ -84,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-30T23:40:51.187Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-03-30T23:47:41.469Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None

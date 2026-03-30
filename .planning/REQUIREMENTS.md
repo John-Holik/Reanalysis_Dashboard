@@ -13,9 +13,9 @@
 
 ### Pipeline Execution
 
-- [ ] **EXEC-01**: Pipeline runs in a background thread — UI remains responsive during execution
-- [ ] **EXEC-02**: User sees live log output in the browser during LSTM training and EnKF execution
-- [ ] **EXEC-03**: User sees a readable, plain-English error message if the pipeline fails (not a raw Python traceback)
+- [x] **EXEC-01**: Pipeline runs in a background thread — UI remains responsive during execution
+- [x] **EXEC-02**: User sees live log output in the browser during LSTM training and EnKF execution
+- [x] **EXEC-03**: User sees a readable, plain-English error message if the pipeline fails (not a raw Python traceback)
 - [x] **EXEC-04**: User can cancel a running job with a Stop/Cancel button
 
 ### Output
@@ -70,9 +70,9 @@
 | UPLOAD-02 | Phase 1 | Complete |
 | UPLOAD-03 | Phase 1 | Complete |
 | REL-02 | Phase 1 | Complete |
-| EXEC-01 | Phase 2 | Pending |
-| EXEC-02 | Phase 2 | Pending |
-| EXEC-03 | Phase 2 | Pending |
+| EXEC-01 | Phase 2 | Complete |
+| EXEC-02 | Phase 2 | Complete |
+| EXEC-03 | Phase 2 | Complete |
 | EXEC-04 | Phase 2 | Complete |
 | REL-01 | Phase 2 | Complete |
 | REL-03 | Phase 2 | Complete |
