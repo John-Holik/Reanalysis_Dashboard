@@ -24,6 +24,7 @@ class JobStatus(Enum):
     RUNNING = "running"
     DONE = "done"
     ERROR = "error"
+    CANCELLED = "cancelled"
 
 
 @dataclass
@@ -32,6 +33,7 @@ class JobResult:
     output_dir: Optional[str] = None
     summary_metrics: Optional[dict] = None
     error_message: Optional[str] = None
+    cancelled: bool = False
 
 
 class _QueueWriter(io.TextIOBase):
@@ -58,13 +60,14 @@ def _run_pipeline_in_thread(
     seed: int,
     result: JobResult,
     progress_queue: queue.Queue,
+    stop_event,
 ):
     """
     Worker executed in a background thread.
 
     Captures all print() output from run_single_reanalysis and writes each
-    line to progress_queue. Sends '__DONE__' or '__ERROR__' as the final
-    sentinel value so the UI knows when to advance to the results step.
+    line to progress_queue. Sends '__DONE__', '__CANCELLED__', or '__ERROR__'
+    as the final sentinel value so the UI knows when to advance to the results step.
     """
     output_dir = tempfile.mkdtemp(prefix="reanalysis_")
     result.output_dir = output_dir
@@ -83,21 +86,35 @@ def _run_pipeline_in_thread(
             output_dir=output_dir,
             hyperparams=hyperparams,
             seed=seed,
+            stop_event=stop_event,
         )
         result.summary_metrics = metrics
         result.status = JobStatus.DONE
         progress_queue.put("__DONE__")
+    except InterruptedError:
+        result.status = JobStatus.CANCELLED
+        result.cancelled = True
+        progress_queue.put("__CANCELLED__")
     except Exception:
         result.error_message = traceback.format_exc()
         result.status = JobStatus.ERROR
         progress_queue.put("__ERROR__")
     finally:
         sys.stdout = old_stdout
+        import matplotlib.pyplot as plt
+        plt.close('all')
 
 
-def launch_job(model_df, obs_df, variable, station_name, hyperparams, seed):
+def launch_job(model_df, obs_df, variable, station_name, hyperparams, seed,
+               stop_event=None):
     """
     Spawn a background daemon thread to run the reanalysis pipeline.
+
+    Parameters
+    ----------
+    stop_event : threading.Event or None
+        When set, signals the pipeline to raise InterruptedError at the next
+        checkpoint, allowing graceful cancellation.
 
     Returns
     -------
@@ -109,7 +126,7 @@ def launch_job(model_df, obs_df, variable, station_name, hyperparams, seed):
     t = threading.Thread(
         target=_run_pipeline_in_thread,
         args=(model_df, obs_df, variable, station_name,
-              hyperparams, seed, result, q),
+              hyperparams, seed, result, q, stop_event),
         daemon=True,
     )
     t.start()

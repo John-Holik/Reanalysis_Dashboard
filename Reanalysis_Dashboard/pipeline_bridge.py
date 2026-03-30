@@ -27,6 +27,19 @@ if str(_PIPELINE_ROOT) not in sys.path:
 from src.pipeline import run_single_reanalysis  # noqa: E402
 
 
+class _BytesShim:
+    """Minimal shim so bridge functions accept raw bytes like a Streamlit UploadedFile."""
+
+    def __init__(self, data: bytes):
+        self._data = data
+
+    def read(self) -> bytes:
+        return self._data
+
+    def seek(self, pos: int) -> None:
+        pass  # no-op; bridge functions wrap in BytesIO internally
+
+
 # ---- Helper: peek at column names ------------------------------------
 
 def get_csv_columns(uploaded_file) -> list:
@@ -130,9 +143,15 @@ def build_model_df_generic(uploaded_file, date_col: str, value_col: str) -> pd.D
         DataFrame with DatetimeIndex named 'time' and a single 'value'
         column (float64). Same output contract as build_model_df()[variable].
     """
+    uploaded_file.seek(0)
     buf = io.BytesIO(uploaded_file.read())
     df = pd.read_csv(buf, encoding="utf-8-sig")
     uploaded_file.seek(0)
+    if date_col not in df.columns:
+        raise ValueError(
+            f"Date column '{date_col}' not found in uploaded CSV. "
+            f"Available columns: {df.columns.tolist()}"
+        )
     df["time"] = pd.to_datetime(df[date_col], format="mixed", dayfirst=False)
     df["value"] = pd.to_numeric(df[value_col], errors="coerce")
     df = df.set_index("time")[["value"]].sort_index()

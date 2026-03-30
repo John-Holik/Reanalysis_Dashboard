@@ -18,7 +18,8 @@ from .visualization import plot_comparison, plot_ci_area, plot_model_vs_observed
 
 
 def run_single_reanalysis(model_df, obs_df, variable, station_name,
-                          output_dir, hyperparams, seed=42):
+                          output_dir, hyperparams, seed=42,
+                          stop_event=None):
     """Run the full LSTM + EnKF reanalysis for one station-variable pair.
 
     Parameters
@@ -34,11 +35,17 @@ def run_single_reanalysis(model_df, obs_df, variable, station_name,
     output_dir : str
     hyperparams : dict
     seed : int
+    stop_event : threading.Event or None
+        If set, the pipeline raises InterruptedError at the next checkpoint.
 
     Returns
     -------
     dict with summary metrics.
     """
+    def _check_stop():
+        if stop_event is not None and stop_event.is_set():
+            raise InterruptedError("Pipeline cancelled by user")
+
     np.random.seed(seed)
     tf.random.set_seed(seed)
 
@@ -54,6 +61,7 @@ def run_single_reanalysis(model_df, obs_df, variable, station_name,
     mdl_daily = resample_model_to_daily(model_df)
     print(f"  Model: {len(mdl_daily)} daily rows "
           f"({mdl_daily.index[0].date()} → {mdl_daily.index[-1].date()})")
+    _check_stop()
 
     # --- Step 2: Determine if sparse or dense observations ---
     obs_count = len(obs_df.dropna(subset=["value"]))
@@ -74,6 +82,7 @@ def run_single_reanalysis(model_df, obs_df, variable, station_name,
     T = len(mdl_aligned)
     time_idx = mdl_aligned.index
     print(f"  Time series length: {T} days")
+    _check_stop()
 
     # --- Step 3: Standardize ---
     obs_vals = obs_aligned["value"].values
@@ -92,6 +101,7 @@ def run_single_reanalysis(model_df, obs_df, variable, station_name,
         mdl_std = scaler.transform(mdl_vals.reshape(-1, 1))
     else:
         obs_std, mdl_std, scaler = standardize(obs_vals, mdl_vals)
+    _check_stop()
 
     # --- Step 4: Build sequences & train LSTM ---
     X_all, y_all = build_sequences(mdl_std, lookback)
@@ -116,11 +126,13 @@ def run_single_reanalysis(model_df, obs_df, variable, station_name,
     best_val = min(history.history["val_loss"])
     stopped_epoch = len(history.history["loss"])
     print(f"  LSTM trained — stopped at epoch {stopped_epoch}, best val_loss={best_val:.6f}")
+    _check_stop()
 
     # --- Step 5: Estimate Q and R ---
     Q = estimate_process_noise(lstm, X_train, y_train)
     R = compute_obs_error(obs_std, factor=obs_err_factor)
     print(f"  Q = {Q:.6f} (std={np.sqrt(Q):.4f}), R = {R:.6f} (std={np.sqrt(R):.4f})")
+    _check_stop()
 
     # --- Step 6: Run EnKF ---
     print(f"  Running EnKF — {n_ensemble} members × {T} steps...")
@@ -129,11 +141,13 @@ def run_single_reanalysis(model_df, obs_df, variable, station_name,
         n_ensemble=n_ensemble, seed=seed,
     )
     print(f"  EnKF complete.")
+    _check_stop()
 
     # --- Step 7: Open-loop baseline ---
     print(f"  Running open-loop baseline...")
     openloop_std = run_openloop(lstm, mdl_std, Q, lookback, seed=seed)
     print(f"  Open-loop complete.")
+    _check_stop()
 
     # --- Step 8: Inverse transform to physical units ---
     rean_mean_std = ens_analysis.mean(axis=1)
@@ -153,12 +167,14 @@ def run_single_reanalysis(model_df, obs_df, variable, station_name,
     ens_phys = np.zeros_like(ens_analysis)
     for m in range(n_ensemble):
         ens_phys[:, m] = inverse_transform(ens_analysis[:, m], scaler)
+    _check_stop()
 
     # --- Step 9: CI computation ---
     ci_lower, ci_upper = compute_ci_bounds(ens_phys)
     ci_stats = compute_ci_integral(ci_lower, ci_upper)
     print(f"  95% CI integral: {ci_stats['integral']:,.2f}, "
           f"mean width: {ci_stats['mean_width']:.4f}")
+    _check_stop()
 
     # --- Step 10: Export CSVs ---
     os.makedirs(output_dir, exist_ok=True)
@@ -166,6 +182,7 @@ def run_single_reanalysis(model_df, obs_df, variable, station_name,
         time_idx, obs_phys, openloop_phys, rean_mean_phys,
         ens_phys, output_dir, variable, n_ensemble,
     )
+    _check_stop()
 
     # --- Step 11: Plots ---
     plot_comparison(
@@ -180,6 +197,7 @@ def run_single_reanalysis(model_df, obs_df, variable, station_name,
         time_idx, mdl_phys, obs_phys,
         variable, station_name, output_dir,
     )
+    _check_stop()
 
     return {
         "station": station_name,
