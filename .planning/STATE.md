@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-29T22:56:18.905Z"
-last_activity: 2026-03-29
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-30T23:40:51.190Z"
+last_activity: 2026-03-30
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 2
-  completed_plans: 1
+  total_plans: 6
+  completed_plans: 2
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** A researcher with no ML background can go from raw CSVs to a calibrated reanalysis dataset with uncertainty bounds in under 30 minutes, entirely in a browser.
-**Current focus:** Phase 01 — pipeline-generalization
+**Current focus:** Phase 02 — robustness-and-reliability
 
 ## Current Position
 
-Phase: 01 (pipeline-generalization) — EXECUTING
-Plan: 2 of 2
+Phase: 02 (robustness-and-reliability) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-03-29
+Last activity: 2026-03-30
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01 P01 | 4 | 3 tasks | 3 files |
+| Phase 02 P01 | 8 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,9 @@ Recent decisions affecting current work:
 - Init: Phase 4 (Packaging) flagged for a brief research pass before planning — tensorflow-cpu package name for TF 2.20 on Python 3.13 needs verification
 - [Phase 01]: Reanalysis_Dashboard gitlink absorbed into main repo as tracked files — no .gitmodules or separate .git existed, absorbing was safe
 - [Phase 01]: build_model_df_generic added alongside legacy build_model_df — backward compatibility preserved, old function annotated with Legacy comment
+- [Phase 02]: FastAPI stack replaces Streamlit — streamlit removed from requirements.txt, FastAPI/uvicorn/multipart/aiofiles added
+- [Phase 02]: stop_event uses threading.Event + InterruptedError protocol for clean cancellation separation in pipeline.py
+- [Phase 02]: _BytesShim uses no-op seek() since bridge functions wrap in BytesIO internally
 
 ### Pending Todos
 
@@ -80,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-29T22:56:18.902Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-03-30T23:40:51.187Z
+Stopped at: Completed 02-01-PLAN.md
 Resume file: None

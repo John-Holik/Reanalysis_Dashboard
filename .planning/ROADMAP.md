@@ -47,7 +47,7 @@ Plans:
   6. App runs with `uvicorn server:app` (or `python server.py`) — no Streamlit dependency required
 **Plans**: 4 plans
 Plans:
-- [ ] 02-01-PLAN.md -- Install FastAPI deps, add stop_event to pipeline.py, update job_runner.py, add _BytesShim
+- [x] 02-01-PLAN.md -- Install FastAPI deps, add stop_event to pipeline.py, update job_runner.py, add _BytesShim
 - [ ] 02-02-PLAN.md -- Create server.py with all API routes + test stubs
 - [ ] 02-03-PLAN.md -- Create Alpine.js + Tailwind CSS wizard frontend (static/index.html)
 - [ ] 02-04-PLAN.md -- Delete Streamlit app.py + human-verify full wizard flow
@@ -81,6 +81,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Pipeline Generalization | 0/2 | Planned | - |
-| 2. HTML App Migration and Reliability | 0/4 | Planned | - |
+| 2. HTML App Migration and Reliability | 1/4 | In Progress|  |
 | 3. Output and Results | 0/TBD | Not started | - |
 | 4. Packaging and Distribution | 0/TBD | Not started | - |
