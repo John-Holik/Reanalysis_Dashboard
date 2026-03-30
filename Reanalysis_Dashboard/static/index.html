@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reanalysis Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body
+  class="bg-gray-100 min-h-screen"
+  x-data="{
+    step: 0,
+
+    /* --- File state --- */
+    modelFile: null,
+    obsFile: null,
+
+    /* --- Column state --- */
+    modelColumns: [],
+    obsColumns: [],
+    modelNumericCols: [],
+    obsNumericCols: [],
+    modelPreview: [],
+    obsPreview: [],
+
+    /* --- Column selections --- */
+    modelDateCol: '',
+    modelValueCol: '',
+    obsDateCol: '',
+    obsValueCol: '',
+
+    /* --- Run identity --- */
+    stationName: 'MyDataset',
+
+    /* --- Hyperparameters (mirror DEFAULT_HYPERPARAMS) --- */
+    hyperparams: {
+      lookback: 12,
+      lstm_units: 64,
+      dense_units: 64,
+      learning_rate: 0.001,
+      batch_size: 32,
+      epochs: 200,
+      patience: 15,
+      n_ensemble: 50,
+      obs_error_factor: 0.2,
+      train_fraction: 0.8,
+      min_overlap_days: 30
+    },
+    seed: 42,
+
+    /* --- Run state --- */
+    logLines: [],
+    errorTrace: '',
+    eventSource: null,
+    resultMetrics: null,
+    isRunning: false,
+
+    /* --- Computed: all required fields filled --- */
+    get canProceed() {
+      return (
+        this.modelFile &&
+        this.obsFile &&
+        this.modelDateCol &&
+        this.modelValueCol &&
+        this.obsDateCol &&
+        this.obsValueCol &&
+        this.stationName.trim() !== ''
+      );
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* pickFile(type, event)                                                */
+    /* POST to /api/preview-csv, populate columns + preview, auto-select   */
+    /* ------------------------------------------------------------------ */
+    async pickFile(type, event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (type === 'model') {
+        this.modelFile = file;
+        this.modelColumns = [];
+        this.modelNumericCols = [];
+        this.modelPreview = [];
+        this.modelDateCol = '';
+        this.modelValueCol = '';
+      } else {
+        this.obsFile = file;
+        this.obsColumns = [];
+        this.obsNumericCols = [];
+        this.obsPreview = [];
+        this.obsDateCol = '';
+        this.obsValueCol = '';
+      }
+
+      const fd = new FormData();
+      fd.append('file', file);
+
+      try {
+        const resp = await fetch('/api/preview-csv', { method: 'POST', body: fd });
+        if (!resp.ok) throw new Error('Preview request failed');
+        const data = await resp.json();
+
+        if (type === 'model') {
+          this.modelColumns = data.columns || [];
+          this.modelNumericCols = data.numeric_columns || [];
+          this.modelPreview = data.preview || [];
+          this.modelDateCol = this.modelColumns[0] || '';
+          this.modelValueCol = this.modelNumericCols[0] || '';
+        } else {
+          this.obsColumns = data.columns || [];
+          this.obsNumericCols = data.numeric_columns || [];
+          this.obsPreview = data.preview || [];
+          this.obsDateCol = this.obsColumns[0] || '';
+          this.obsValueCol = this.obsNumericCols[0] || '';
+        }
+      } catch (err) {
+        alert('Could not read CSV. Please check that the file is UTF-8 encoded and comma-separated.');
+      }
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* startRun()                                                           */
+    /* POST /api/start-run with both files + all params, then open SSE     */
+    /* ------------------------------------------------------------------ */
+    async startRun() {
+      if (this.isRunning) return;
+      this.isRunning = true;
+      this.logLines = [];
+      this.errorTrace = '';
+
+      const fd = new FormData();
+      fd.append('model_file', this.modelFile);
+      fd.append('obs_file', this.obsFile);
+      fd.append('model_date_col', this.modelDateCol);
+      fd.append('model_value_col', this.modelValueCol);
+      fd.append('obs_date_col', this.obsDateCol);
+      fd.append('obs_value_col', this.obsValueCol);
+      fd.append('station_name', this.stationName);
+      fd.append('hyperparams', JSON.stringify(this.hyperparams));
+      fd.append('seed', String(this.seed));
+
+      try {
+        const resp = await fetch('/api/start-run', { method: 'POST', body: fd });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(txt || 'Start run failed');
+        }
+      } catch (err) {
+        this.errorTrace = err.message || String(err);
+        this.step = 'error';
+        this.isRunning = false;
+        return;
+      }
+
+      this.step = 2;
+      this.connectSSE();
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* connectSSE()                                                         */
+    /* Open /api/run-stream, handle log lines + named events               */
+    /* ------------------------------------------------------------------ */
+    connectSSE() {
+      if (this.eventSource) {
+        this.eventSource.close();
+        this.eventSource = null;
+      }
+
+      const es = new EventSource('/api/run-stream');
+      this.eventSource = es;
+
+      /* Default message handler — regular log lines */
+      es.onmessage = (e) => {
+        this.logLines.push(e.data);
+      };
+
+      /* event: done — pipeline completed successfully */
+      es.addEventListener('done', async () => {
+        es.close();
+        this.eventSource = null;
+        this.isRunning = false;
+
+        try {
+          const resp = await fetch('/api/result-summary');
+          if (resp.ok) {
+            const data = await resp.json();
+            this.resultMetrics = data.metrics || null;
+          }
+        } catch (_) { /* non-fatal */ }
+
+        this.step = 3;
+      });
+
+      /* event: error — pipeline failed */
+      es.addEventListener('error', (e) => {
+        es.close();
+        this.eventSource = null;
+        this.isRunning = false;
+        /* Unescape \\n back to real newlines */
+        this.errorTrace = (e.data || 'Unknown error').replace(/\\n/g, '\n');
+        this.step = 'error';
+      });
+
+      /* event: cancelled — user requested stop */
+      es.addEventListener('cancelled', () => {
+        es.close();
+        this.eventSource = null;
+        this.isRunning = false;
+        this.step = 0;
+        /* Preserve files, columns, params per D-17/D-20 */
+      });
+
+      /* Network-level error fallback */
+      es.onerror = () => {
+        if (es.readyState === EventSource.CLOSED) {
+          es.close();
+          this.eventSource = null;
+          if (this.isRunning) {
+            this.isRunning = false;
+            if (this.step === 2) {
+              this.errorTrace = 'Connection to server lost.';
+              this.step = 'error';
+            }
+          }
+        }
+      };
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* cancel()                                                             */
+    /* POST /api/cancel and close local SSE connection                     */
+    /* ------------------------------------------------------------------ */
+    async cancel() {
+      try {
+        await fetch('/api/cancel', { method: 'POST' });
+      } catch (_) { /* best-effort */ }
+      if (this.eventSource) {
+        this.eventSource.close();
+        this.eventSource = null;
+      }
+    },
+
+    /* ------------------------------------------------------------------ */
+    /* previewHeaders(type)                                                 */
+    /* Return column header keys for preview table                         */
+    /* ------------------------------------------------------------------ */
+    previewHeaders(type) {
+      const rows = type === 'model' ? this.modelPreview : this.obsPreview;
+      if (!rows || rows.length === 0) return [];
+      return Object.keys(rows[0]);
+    }
+  }"
+>
+
+  <!-- ================================================================== -->
+  <!-- App Shell                                                            -->
+  <!-- ================================================================== -->
+  <div class="max-w-5xl mx-auto p-6">
+
+    <!-- Header -->
+    <div class="mb-6">
+      <h1 class="text-3xl font-bold text-gray-800">Reanalysis Dashboard</h1>
+      <p class="text-gray-500 mt-1">
+        LSTM + Ensemble Kalman Filter — upload your CSVs and generate a reanalysis dataset with uncertainty bounds.
+      </p>
+    </div>
+
+    <!-- Step indicator (shown on steps 0-3) -->
+    <div class="flex items-center gap-2 mb-8" x-show="step !== 'error'">
+      <template x-for="(label, idx) in ['Upload', 'Configure', 'Running', 'Results']" :key="idx">
+        <div class="flex items-center gap-2">
+          <div
+            class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors"
+            :class="{
+              'bg-blue-600 text-white': step === idx,
+              'bg-green-500 text-white': typeof step === 'number' && step > idx,
+              'bg-gray-200 text-gray-500': typeof step === 'number' && step < idx
+            }"
+            x-text="idx + 1"
+          ></div>
+          <span
+            class="text-sm font-medium hidden sm:inline"
+            :class="{
+              'text-blue-600': step === idx,
+              'text-green-600': typeof step === 'number' && step > idx,
+              'text-gray-400': typeof step === 'number' && step < idx
+            }"
+            x-text="label"
+          ></span>
+          <span class="text-gray-300 text-lg" x-show="idx < 3">›</span>
+        </div>
+      </template>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- STEP 0: Upload                                                    -->
+    <!-- ================================================================ -->
+    <div x-show="step === 0" x-cloak>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+        <!-- Model CSV card -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-lg font-semibold text-gray-700 mb-1">Model CSV</h2>
+          <p class="text-sm text-gray-400 mb-4">Any CSV with a date column and a numeric simulation column.</p>
+
+          <label class="block cursor-pointer">
+            <div
+              class="border-2 border-dashed rounded-lg p-4 text-center transition-colors"
+              :class="modelFile ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-blue-400'"
+            >
+              <input
+                type="file"
+                accept=".csv"
+                class="hidden"
+                @change="pickFile('model', $event)"
+              >
+              <p class="text-sm text-gray-500" x-show="!modelFile">Click to select a CSV file</p>
+              <p class="text-sm text-blue-700 font-medium" x-show="modelFile" x-text="modelFile?.name"></p>
+            </div>
+          </label>
+
+          <!-- Columns detected badge -->
+          <div x-show="modelColumns.length > 0" class="mt-3 flex items-center gap-2">
+            <span class="inline-block bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded">
+              <span x-text="modelColumns.length"></span> columns detected
+            </span>
+          </div>
+
+          <!-- Preview table -->
+          <div x-show="modelPreview.length > 0" class="mt-4 overflow-x-auto">
+            <p class="text-xs font-medium text-gray-500 mb-1">Preview (first 5 rows)</p>
+            <table class="border-collapse w-full text-xs">
+              <thead>
+                <tr class="bg-gray-50">
+                  <template x-for="col in previewHeaders('model')" :key="col">
+                    <th class="border border-gray-200 px-2 py-1 text-left text-gray-600 font-medium" x-text="col"></th>
+                  </template>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(row, i) in modelPreview" :key="i">
+                  <tr class="hover:bg-gray-50">
+                    <template x-for="col in previewHeaders('model')" :key="col">
+                      <td class="border border-gray-200 px-2 py-1 text-gray-700" x-text="row[col] ?? ''"></td>
+                    </template>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Column selectors -->
+          <div x-show="modelColumns.length > 0" class="mt-4 space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">Date column</label>
+              <select x-model="modelDateCol" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <template x-for="col in modelColumns" :key="col">
+                  <option :value="col" x-text="col"></option>
+                </template>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">Value column (variable to reanalyse)</label>
+              <select x-model="modelValueCol" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <template x-for="col in modelNumericCols" :key="col">
+                  <option :value="col" x-text="col"></option>
+                </template>
+              </select>
+              <p x-show="modelNumericCols.length === 0 && modelColumns.length > 0" class="text-xs text-amber-600 mt-1">
+                No numeric columns detected. Verify your value column selection carefully.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Observation CSV card -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-lg font-semibold text-gray-700 mb-1">Observation CSV</h2>
+          <p class="text-sm text-gray-400 mb-4">Any CSV with a date column and a numeric observation column.</p>
+
+          <label class="block cursor-pointer">
+            <div
+              class="border-2 border-dashed rounded-lg p-4 text-center transition-colors"
+              :class="obsFile ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-blue-400'"
+            >
+              <input
+                type="file"
+                accept=".csv"
+                class="hidden"
+                @change="pickFile('obs', $event)"
+              >
+              <p class="text-sm text-gray-500" x-show="!obsFile">Click to select a CSV file</p>
+              <p class="text-sm text-blue-700 font-medium" x-show="obsFile" x-text="obsFile?.name"></p>
+            </div>
+          </label>
+
+          <!-- Columns detected badge -->
+          <div x-show="obsColumns.length > 0" class="mt-3 flex items-center gap-2">
+            <span class="inline-block bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded">
+              <span x-text="obsColumns.length"></span> columns detected
+            </span>
+          </div>
+
+          <!-- Preview table -->
+          <div x-show="obsPreview.length > 0" class="mt-4 overflow-x-auto">
+            <p class="text-xs font-medium text-gray-500 mb-1">Preview (first 5 rows)</p>
+            <table class="border-collapse w-full text-xs">
+              <thead>
+                <tr class="bg-gray-50">
+                  <template x-for="col in previewHeaders('obs')" :key="col">
+                    <th class="border border-gray-200 px-2 py-1 text-left text-gray-600 font-medium" x-text="col"></th>
+                  </template>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(row, i) in obsPreview" :key="i">
+                  <tr class="hover:bg-gray-50">
+                    <template x-for="col in previewHeaders('obs')" :key="col">
+                      <td class="border border-gray-200 px-2 py-1 text-gray-700" x-text="row[col] ?? ''"></td>
+                    </template>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Column selectors -->
+          <div x-show="obsColumns.length > 0" class="mt-4 space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">Date column</label>
+              <select x-model="obsDateCol" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <template x-for="col in obsColumns" :key="col">
+                  <option :value="col" x-text="col"></option>
+                </template>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">Value column (variable to reanalyse)</label>
+              <select x-model="obsValueCol" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <template x-for="col in obsNumericCols" :key="col">
+                  <option :value="col" x-text="col"></option>
+                </template>
+              </select>
+              <p x-show="obsNumericCols.length === 0 && obsColumns.length > 0" class="text-xs text-amber-600 mt-1">
+                No numeric columns detected. Verify your value column selection carefully.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dataset name + Next button -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Dataset / run name</label>
+          <input
+            type="text"
+            x-model="stationName"
+            class="border rounded px-3 py-2 w-full sm:w-80 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="MyDataset"
+          >
+          <p class="text-xs text-gray-400 mt-1">Used as a label in output filenames and plots.</p>
+        </div>
+
+        <button
+          @click="step = 1"
+          :disabled="!canProceed"
+          class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
+        >
+          Next: Hyperparameters
+        </button>
+
+        <p x-show="!canProceed" class="text-xs text-gray-400 mt-2">
+          Upload both CSVs and select date + value columns to continue.
+        </p>
+      </div>
+    </div><!-- /step 0 -->
+
+    <!-- ================================================================ -->
+    <!-- STEP 1: Hyperparameters                                           -->
+    <!-- ================================================================ -->
+    <div x-show="step === 1" x-cloak>
+      <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-700 mb-1">Hyperparameters</h2>
+        <p class="text-sm text-gray-400 mb-6">Defaults are tuned for daily time-series data. Adjust only if needed.</p>
+
+        <!-- LSTM Architecture & Training -->
+        <div class="mb-6">
+          <h3 class="text-base font-semibold text-gray-600 mb-4 border-b pb-2">LSTM Architecture &amp; Training</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- Lookback -->
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">
+                Lookback window (time steps):
+                <span class="text-blue-600 font-bold" x-text="hyperparams.lookback"></span>
+              </label>
+              <input
+                type="range" min="5" max="60" step="1"
+                x-model.number="hyperparams.lookback"
+                class="w-full accent-blue-600"
+              >
+              <p class="text-xs text-gray-400 mt-1">Number of past time steps fed as input to the LSTM.</p>
+            </div>
+
+            <!-- LSTM units -->
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">LSTM units</label>
+              <select x-model.number="hyperparams.lstm_units" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option :value="32">32</option>
+                <option :value="64">64</option>
+                <option :value="128">128</option>
+                <option :value="256">256</option>
+              </select>
+            </div>
+
+            <!-- Dense units -->
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">Dense units</label>
+              <select x-model.number="hyperparams.dense_units" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option :value="32">32</option>
+                <option :value="64">64</option>
+                <option :value="128">128</option>
+              </select>
+            </div>
+
+            <!-- Learning rate -->
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">Learning rate</label>
+              <select x-model.number="hyperparams.learning_rate" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option :value="0.0001">0.0001</option>
+                <option :value="0.0005">0.0005</option>
+                <option :value="0.001">0.001 (default)</option>
+                <option :value="0.005">0.005</option>
+                <option :value="0.01">0.01</option>
+              </select>
+            </div>
+
+            <!-- Batch size -->
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">Batch size</label>
+              <select x-model.number="hyperparams.batch_size" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option :value="16">16</option>
+                <option :value="32">32</option>
+                <option :value="64">64</option>
+              </select>
+            </div>
+
+            <!-- Max epochs -->
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">
+                Max epochs:
+                <span class="text-blue-600 font-bold" x-text="hyperparams.epochs"></span>
+              </label>
+              <input
+                type="range" min="50" max="500" step="10"
+                x-model.number="hyperparams.epochs"
+                class="w-full accent-blue-600"
+              >
+            </div>
+
+            <!-- Patience -->
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">
+                Early stopping patience:
+                <span class="text-blue-600 font-bold" x-text="hyperparams.patience"></span>
+              </label>
+              <input
+                type="range" min="5" max="50" step="1"
+                x-model.number="hyperparams.patience"
+                class="w-full accent-blue-600"
+              >
+              <p class="text-xs text-gray-400 mt-1">Stop if val loss does not improve for this many epochs.</p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- EnKF Settings -->
+        <div class="mb-6">
+          <h3 class="text-base font-semibold text-gray-600 mb-4 border-b pb-2">Ensemble Kalman Filter (EnKF)</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- Ensemble members -->
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">
+                Ensemble members:
+                <span class="text-blue-600 font-bold" x-text="hyperparams.n_ensemble"></span>
+              </label>
+              <input
+                type="range" min="10" max="200" step="5"
+                x-model.number="hyperparams.n_ensemble"
+                class="w-full accent-blue-600"
+              >
+              <p class="text-xs text-gray-400 mt-1">More members = better uncertainty estimate but slower.</p>
+            </div>
+
+            <!-- Obs error factor -->
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">
+                Observation error factor (R):
+                <span class="text-blue-600 font-bold" x-text="hyperparams.obs_error_factor.toFixed(2)"></span>
+              </label>
+              <input
+                type="range" min="0.05" max="1.0" step="0.05"
+                x-model.number="hyperparams.obs_error_factor"
+                class="w-full accent-blue-600"
+              >
+              <p class="text-xs text-gray-400 mt-1">R = factor x Var(obs). Higher = trust model more.</p>
+            </div>
+
+            <!-- Train fraction -->
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">
+                Train fraction:
+                <span class="text-blue-600 font-bold" x-text="hyperparams.train_fraction.toFixed(2)"></span>
+              </label>
+              <input
+                type="range" min="0.5" max="0.9" step="0.05"
+                x-model.number="hyperparams.train_fraction"
+                class="w-full accent-blue-600"
+              >
+            </div>
+
+            <!-- Min overlap -->
+            <div>
+              <label class="block text-sm font-medium text-gray-600 mb-1">
+                Min overlap (time steps):
+                <span class="text-blue-600 font-bold" x-text="hyperparams.min_overlap_days"></span>
+              </label>
+              <input
+                type="range" min="10" max="100" step="1"
+                x-model.number="hyperparams.min_overlap_days"
+                class="w-full accent-blue-600"
+              >
+              <p class="text-xs text-gray-400 mt-1">Minimum time steps where model and observations overlap.</p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Seed -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Random seed</label>
+          <input
+            type="number" min="0"
+            x-model.number="seed"
+            class="border rounded px-3 py-2 w-32 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          >
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex items-center gap-4 pt-4 border-t">
+          <button
+            @click="step = 0"
+            class="border border-gray-300 text-gray-600 px-5 py-2 rounded hover:bg-gray-50 font-medium transition-colors"
+          >
+            Back
+          </button>
+          <button
+            @click="startRun()"
+            :disabled="isRunning"
+            class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
+          >
+            <span x-show="!isRunning">Run Reanalysis</span>
+            <span x-show="isRunning">Starting...</span>
+          </button>
+        </div>
+      </div>
+    </div><!-- /step 1 -->
+
+    <!-- ================================================================ -->
+    <!-- STEP 2: Running                                                   -->
+    <!-- ================================================================ -->
+    <div x-show="step === 2" x-cloak>
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <!-- Pulsing indicator -->
+            <span class="relative flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-600"></span>
+            </span>
+            <h2 class="text-xl font-semibold text-gray-700">Running Pipeline...</h2>
+          </div>
+          <button
+            @click="cancel()"
+            class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 font-medium text-sm transition-colors"
+          >
+            Stop
+          </button>
+        </div>
+
+        <p class="text-sm text-gray-400 mb-4">
+          The LSTM is training and the EnKF is running. This may take several minutes depending on your dataset size and hardware.
+        </p>
+
+        <!-- Log panel -->
+        <div class="mb-3 flex items-center justify-between">
+          <p class="text-xs font-medium text-gray-500">Pipeline output</p>
+          <span class="text-xs text-gray-400">
+            <span x-text="logLines.length"></span> lines
+          </span>
+        </div>
+
+        <pre
+          x-text="logLines.slice(-30).join('\n')"
+          x-ref="logPanel"
+          class="bg-gray-900 text-green-400 p-4 rounded overflow-y-auto max-h-96 font-mono text-sm whitespace-pre-wrap"
+        >Initializing TensorFlow and loading data...</pre>
+
+        <!-- Auto-scroll log to bottom on update -->
+        <div x-init="$watch('logLines', () => { $nextTick(() => { $refs.logPanel && ($refs.logPanel.scrollTop = $refs.logPanel.scrollHeight) }) })"></div>
+      </div>
+    </div><!-- /step 2 -->
+
+    <!-- ================================================================ -->
+    <!-- STEP 3: Results                                                   -->
+    <!-- ================================================================ -->
+    <div x-show="step === 3" x-cloak>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Results</h2>
+
+        <!-- Metrics grid -->
+        <div x-show="resultMetrics" class="mb-6">
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Summary Metrics</h3>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+
+            <div class="bg-blue-50 rounded-lg p-4 text-center">
+              <p class="text-xs text-gray-500 mb-1">Time Steps</p>
+              <p class="text-2xl font-bold text-blue-700" x-text="resultMetrics?.T?.toLocaleString() ?? '—'"></p>
+            </div>
+
+            <div class="bg-blue-50 rounded-lg p-4 text-center">
+              <p class="text-xs text-gray-500 mb-1">Observations</p>
+              <p class="text-2xl font-bold text-blue-700" x-text="resultMetrics?.obs_count?.toLocaleString() ?? '—'"></p>
+            </div>
+
+            <div class="bg-blue-50 rounded-lg p-4 text-center">
+              <p class="text-xs text-gray-500 mb-1">Sparse?</p>
+              <p class="text-2xl font-bold text-blue-700" x-text="resultMetrics?.is_sparse ? 'Yes' : 'No'"></p>
+            </div>
+
+            <div class="bg-blue-50 rounded-lg p-4 text-center">
+              <p class="text-xs text-gray-500 mb-1">Best Val Loss</p>
+              <p class="text-2xl font-bold text-blue-700" x-text="resultMetrics?.best_val_loss != null ? Number(resultMetrics.best_val_loss).toFixed(5) : '—'"></p>
+            </div>
+
+            <div class="bg-blue-50 rounded-lg p-4 text-center">
+              <p class="text-xs text-gray-500 mb-1">Stopped Epoch</p>
+              <p class="text-2xl font-bold text-blue-700" x-text="resultMetrics?.stopped_epoch ?? '—'"></p>
+            </div>
+
+            <div class="bg-blue-50 rounded-lg p-4 text-center">
+              <p class="text-xs text-gray-500 mb-1">CI Mean Width</p>
+              <p class="text-2xl font-bold text-blue-700" x-text="resultMetrics?.ci_mean_width != null ? Number(resultMetrics.ci_mean_width).toFixed(4) : '—'"></p>
+            </div>
+
+          </div>
+        </div>
+
+        <div x-show="!resultMetrics" class="mb-6 p-4 bg-gray-50 rounded text-sm text-gray-500">
+          No summary metrics available.
+        </div>
+
+        <p class="text-sm text-gray-500 mb-6">
+          Your reanalysis outputs have been saved to the server's temporary output directory. Download your results from the server or check the console for the output path.
+        </p>
+
+        <button
+          @click="step = 0; logLines = []; resultMetrics = null;"
+          class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-medium transition-colors"
+        >
+          Run Another Analysis
+        </button>
+      </div>
+    </div><!-- /step 3 -->
+
+    <!-- ================================================================ -->
+    <!-- ERROR STATE                                                       -->
+    <!-- ================================================================ -->
+    <div x-show="step === 'error'" x-cloak>
+      <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
+        <div class="flex items-start gap-4 mb-4">
+          <div class="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+            <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-gray-800">The pipeline encountered an error.</h2>
+            <p class="text-sm text-gray-500 mt-1">
+              This is usually caused by incompatible column data types, insufficient overlap between model and observation dates, or an out-of-memory condition.
+            </p>
+          </div>
+        </div>
+
+        <!-- Collapsible traceback (per D-18) -->
+        <div class="mt-4 mb-6">
+        <details>
+          <summary class="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-800 select-none">
+            Show technical details
+          </summary>
+          <pre
+            x-text="errorTrace"
+            class="mt-3 bg-gray-900 text-red-300 p-4 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap max-h-80 overflow-y-auto"
+          ></pre>
+        </details>
+        </div>
+
+        <button
+          @click="step = 0"
+          class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-medium transition-colors"
+        >
+          Start Over
+        </button>
+      </div>
+    </div><!-- /error state -->
+
+  </div><!-- /max-w-5xl container -->
+
+</body>
+</html>
