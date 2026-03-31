@@ -4,11 +4,175 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reanalysis Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    /* ── Design tokens ────────────────────────────────────────── */
+    :root {
+      --bg:           #fafaf8;
+      --surface:      #ffffff;
+      --border:       #e5e3dc;
+      --text-primary: #1a1a1a;
+      --text-secondary:#6b6860;
+      --accent:       #2563eb;
+      --accent-muted: #eff6ff;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      margin: 0;
+    }
+    h1 { font-family: 'DM Serif Display', serif; font-weight: 400; margin: 0; }
+    pre, code, .mono { font-family: 'JetBrains Mono', monospace; }
+    [x-cloak] { display: none !important; }
+
+    /* ── Panel (bordered section, no heavy shadow) ────────────── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    /* ── Step breadcrumb ──────────────────────────────────────── */
+    .step-nav {
+      display: flex;
+      gap: 2rem;
+      padding-bottom: 0.875rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2.5rem;
+    }
+    .step-nav .sn {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      padding-bottom: 0.6875rem;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -0.9375rem;
+      transition: color 150ms ease;
+    }
+    .step-nav .sn.active {
+      color: var(--text-primary);
+      font-weight: 600;
+      border-bottom-color: var(--accent);
+    }
+
+    /* ── Typography helpers ───────────────────────────────────── */
+    .label-caps {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-secondary);
+    }
+    .field-label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 0.3rem;
+    }
+    .hint { font-size: 0.8125rem; color: var(--text-secondary); margin-top: 0.3rem; }
+
+    /* ── Form controls ────────────────────────────────────────── */
+    select,
+    input[type="text"],
+    input[type="number"] {
+      font-family: inherit;
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 0.375rem 0.625rem;
+      width: 100%;
+      outline: none;
+      transition: border-color 150ms ease;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+    input[type="range"] { accent-color: var(--accent); width: 100%; }
+
+    /* ── Buttons ──────────────────────────────────────────────── */
+    .btn { font-family: inherit; font-size: 0.875rem; font-weight: 500; border-radius: 3px; cursor: pointer; transition: all 150ms ease; }
+    .btn-primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); padding: 0.4375rem 1.25rem; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); padding: 0.4375rem 1.125rem; }
+    .btn-ghost:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+    .btn-stop { background: transparent; color: #dc2626; border: 1px solid #fca5a5; padding: 0.3125rem 0.875rem; font-size: 0.8125rem; }
+    .btn-stop:hover { background: #fef2f2; border-color: #dc2626; }
+
+    /* ── Upload zone ──────────────────────────────────────────── */
+    .upload-zone {
+      border: 1px dashed var(--border);
+      border-radius: 3px;
+      padding: 1.25rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      transition: all 150ms ease;
+    }
+    .upload-zone:hover { border-color: var(--accent); background: var(--accent-muted); color: var(--accent); border-style: solid; }
+    .upload-zone.has-file { border-color: var(--accent); background: var(--accent-muted); color: var(--accent); border-style: solid; }
+
+    /* ── Data tables (zebra, tight, left-aligned) ─────────────── */
+    table.dt { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+    table.dt th {
+      font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--text-secondary);
+      border-bottom: 2px solid var(--border); padding: 0.5rem 0.75rem;
+      text-align: left; background: var(--bg);
+    }
+    table.dt td { padding: 0.4375rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; }
+    table.dt tr:nth-child(even) td { background: var(--bg); }
+    table.dt tr:last-child td { border-bottom: none; }
+    table.dt td.num { font-variant-numeric: tabular-nums; }
+
+    /* ── Metrics summary row ──────────────────────────────────── */
+    .metrics-row { display: flex; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); overflow: hidden; }
+    .metric-cell { flex: 1; padding: 1rem 1.25rem; border-right: 1px solid var(--border); }
+    .metric-cell:last-child { border-right: none; }
+    .metric-cell .m-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-bottom: 0.2rem; }
+    .metric-cell .m-value { font-size: 1.375rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+
+    /* ── Log terminal ─────────────────────────────────────────── */
+    .log-terminal {
+      background: #111;
+      color: #a3e635;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      line-height: 1.65;
+      padding: 1rem;
+      border-radius: 3px;
+      max-height: 22rem;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      border: 1px solid #222;
+    }
+
+    /* ── Badge ────────────────────────────────────────────────── */
+    .badge { display: inline-block; font-size: 0.6875rem; font-weight: 500; padding: 0.125rem 0.5rem; border-radius: 2px; }
+    .badge-ok { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge-warn { background: #fffbeb; color: #a16207; border: 1px solid #fde68a; }
+
+    /* ── CI distribution bar ──────────────────────────────────── */
+    .ci-bar-track { height: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+    .ci-bar-fill  { height: 100%; background: var(--accent); opacity: 0.45; border-radius: 4px; transition: width 400ms ease; }
+
+    /* ── Divider ──────────────────────────────────────────────── */
+    hr.rule { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+  </style>
 </head>
 <body
-  class="bg-gray-100 min-h-screen"
   x-data="{
     step: 0,
 
@@ -170,12 +334,8 @@
       const es = new EventSource('/api/run-stream');
       this.eventSource = es;
 
-      /* Default message handler — regular log lines */
-      es.onmessage = (e) => {
-        this.logLines.push(e.data);
-      };
+      es.onmessage = (e) => { this.logLines.push(e.data); };
 
-      /* event: done — pipeline completed successfully */
       es.addEventListener('done', async () => {
         es.close();
         this.eventSource = null;
@@ -192,17 +352,14 @@
         this.step = 3;
       });
 
-      /* event: error — pipeline failed */
       es.addEventListener('error', (e) => {
         es.close();
         this.eventSource = null;
         this.isRunning = false;
-        /* Unescape \\n back to real newlines */
         this.errorTrace = (e.data || 'Unknown error').replace(/\\n/g, '\n');
         this.step = 'error';
       });
 
-      /* event: cancelled — user requested stop */
       es.addEventListener('cancelled', () => {
         es.close();
         this.eventSource = null;
@@ -211,7 +368,6 @@
         /* Preserve files, columns, params per D-17/D-20 */
       });
 
-      /* Network-level error fallback */
       es.onerror = () => {
         if (es.readyState === EventSource.CLOSED) {
           es.close();
@@ -229,21 +385,14 @@
 
     /* ------------------------------------------------------------------ */
     /* cancel()                                                             */
-    /* POST /api/cancel and close local SSE connection                     */
     /* ------------------------------------------------------------------ */
     async cancel() {
-      try {
-        await fetch('/api/cancel', { method: 'POST' });
-      } catch (_) { /* best-effort */ }
-      if (this.eventSource) {
-        this.eventSource.close();
-        this.eventSource = null;
-      }
+      try { await fetch('/api/cancel', { method: 'POST' }); } catch (_) {}
+      if (this.eventSource) { this.eventSource.close(); this.eventSource = null; }
     },
 
     /* ------------------------------------------------------------------ */
     /* previewHeaders(type)                                                 */
-    /* Return column header keys for preview table                         */
     /* ------------------------------------------------------------------ */
     previewHeaders(type) {
       const rows = type === 'model' ? this.modelPreview : this.obsPreview;
@@ -253,572 +402,528 @@
   }"
 >
 
-  <!-- ================================================================== -->
-  <!-- App Shell                                                            -->
-  <!-- ================================================================== -->
-  <div class="max-w-5xl mx-auto p-6">
+<!-- ================================================================ -->
+<!-- Page shell                                                         -->
+<!-- ================================================================ -->
+<div style="max-width:900px; margin:0 auto; padding:2.5rem 1.5rem 4rem;">
 
-    <!-- Header -->
-    <div class="mb-6">
-      <h1 class="text-3xl font-bold text-gray-800">Reanalysis Dashboard</h1>
-      <p class="text-gray-500 mt-1">
-        LSTM + Ensemble Kalman Filter — upload your CSVs and generate a reanalysis dataset with uncertainty bounds.
-      </p>
-    </div>
+  <!-- Header -->
+  <div style="margin-bottom:2.5rem; padding-bottom:1.5rem; border-bottom:1px solid var(--border);">
+    <h1 style="font-size:1.875rem; line-height:1.2; margin-bottom:0.35rem;">Reanalysis Dashboard</h1>
+    <p style="color:var(--text-secondary); font-size:0.9375rem; margin:0;">
+      LSTM + Ensemble Kalman Filter data assimilation — upload model and observation CSVs to produce a reanalysis with uncertainty bounds.
+    </p>
+  </div>
 
-    <!-- Step indicator (shown on steps 0-3) -->
-    <div class="flex items-center gap-2 mb-8" x-show="step !== 'error'">
-      <template x-for="(label, idx) in ['Upload', 'Configure', 'Running', 'Results']" :key="idx">
-        <div class="flex items-center gap-2">
-          <div
-            class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors"
-            :class="{
-              'bg-blue-600 text-white': step === idx,
-              'bg-green-500 text-white': typeof step === 'number' && step > idx,
-              'bg-gray-200 text-gray-500': typeof step === 'number' && step < idx
-            }"
-            x-text="idx + 1"
-          ></div>
-          <span
-            class="text-sm font-medium hidden sm:inline"
-            :class="{
-              'text-blue-600': step === idx,
-              'text-green-600': typeof step === 'number' && step > idx,
-              'text-gray-400': typeof step === 'number' && step < idx
-            }"
-            x-text="label"
-          ></span>
-          <span class="text-gray-300 text-lg" x-show="idx < 3">›</span>
-        </div>
-      </template>
-    </div>
+  <!-- Step breadcrumb -->
+  <nav class="step-nav" x-show="step !== 'error'">
+    <span class="sn" :class="{ active: step === 0, done: step > 0 }">01 · Upload</span>
+    <span class="sn" :class="{ active: step === 1, done: step > 1 }">02 · Configure</span>
+    <span class="sn" :class="{ active: step === 2, done: step > 2 }">03 · Running</span>
+    <span class="sn" :class="{ active: step === 3 }">04 · Results</span>
+  </nav>
 
-    <!-- ================================================================ -->
-    <!-- STEP 0: Upload                                                    -->
-    <!-- ================================================================ -->
-    <div x-show="step === 0" x-cloak>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
 
-        <!-- Model CSV card -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-lg font-semibold text-gray-700 mb-1">Model CSV</h2>
-          <p class="text-sm text-gray-400 mb-4">Any CSV with a date column and a numeric simulation column.</p>
+  <!-- ============================================================== -->
+  <!-- STEP 0: Upload                                                  -->
+  <!-- ============================================================== -->
+  <div x-show="step === 0" x-cloak>
 
-          <label class="block cursor-pointer">
-            <div
-              class="border-2 border-dashed rounded-lg p-4 text-center transition-colors"
-              :class="modelFile ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-blue-400'"
-            >
-              <input
-                type="file"
-                accept=".csv"
-                class="hidden"
-                @change="pickFile('model', $event)"
-              >
-              <p class="text-sm text-gray-500" x-show="!modelFile">Click to select a CSV file</p>
-              <p class="text-sm text-blue-700 font-medium" x-show="modelFile" x-text="modelFile?.name"></p>
-            </div>
-          </label>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
 
-          <!-- Columns detected badge -->
-          <div x-show="modelColumns.length > 0" class="mt-3 flex items-center gap-2">
-            <span class="inline-block bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded">
-              <span x-text="modelColumns.length"></span> columns detected
-            </span>
+      <!-- Model CSV -->
+      <div class="panel" style="padding:1.5rem;">
+        <p class="label-caps" style="margin-bottom:0.75rem;">Model CSV</p>
+        <p style="font-size:0.875rem; color:var(--text-secondary); margin:0 0 1rem;">
+          Simulation output — any date column + numeric value column.
+        </p>
+
+        <label style="display:block; cursor:pointer;">
+          <div class="upload-zone" :class="{ 'has-file': modelFile }">
+            <input type="file" accept=".csv" style="display:none;" @change="pickFile('model', $event)">
+            <span x-show="!modelFile">Select CSV file</span>
+            <span x-show="modelFile" style="font-weight:500;" x-text="modelFile?.name"></span>
           </div>
+        </label>
 
-          <!-- Preview table -->
-          <div x-show="modelPreview.length > 0" class="mt-4 overflow-x-auto">
-            <p class="text-xs font-medium text-gray-500 mb-1">Preview (first 5 rows)</p>
-            <table class="border-collapse w-full text-xs">
-              <thead>
-                <tr class="bg-gray-50">
+        <!-- Column count badge -->
+        <div x-show="modelColumns.length > 0" style="margin-top:0.625rem;">
+          <span class="badge badge-ok" x-text="modelColumns.length + ' columns detected'"></span>
+        </div>
+
+        <!-- Preview table -->
+        <div x-show="modelPreview.length > 0" style="margin-top:1rem; overflow-x:auto;">
+          <p class="label-caps" style="margin-bottom:0.5rem;">Preview — first 5 rows</p>
+          <table class="dt">
+            <thead>
+              <tr>
+                <template x-for="col in previewHeaders('model')" :key="col">
+                  <th x-text="col"></th>
+                </template>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(row, i) in modelPreview" :key="i">
+                <tr>
                   <template x-for="col in previewHeaders('model')" :key="col">
-                    <th class="border border-gray-200 px-2 py-1 text-left text-gray-600 font-medium" x-text="col"></th>
+                    <td class="num" x-text="row[col] ?? ''"></td>
                   </template>
                 </tr>
-              </thead>
-              <tbody>
-                <template x-for="(row, i) in modelPreview" :key="i">
-                  <tr class="hover:bg-gray-50">
-                    <template x-for="col in previewHeaders('model')" :key="col">
-                      <td class="border border-gray-200 px-2 py-1 text-gray-700" x-text="row[col] ?? ''"></td>
-                    </template>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Column selectors -->
-          <div x-show="modelColumns.length > 0" class="mt-4 space-y-3">
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">Date column</label>
-              <select x-model="modelDateCol" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <template x-for="col in modelColumns" :key="col">
-                  <option :value="col" x-text="col"></option>
-                </template>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">Value column (variable to reanalyse)</label>
-              <select x-model="modelValueCol" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <template x-for="col in modelNumericCols" :key="col">
-                  <option :value="col" x-text="col"></option>
-                </template>
-              </select>
-              <p x-show="modelNumericCols.length === 0 && modelColumns.length > 0" class="text-xs text-amber-600 mt-1">
-                No numeric columns detected. Verify your value column selection carefully.
-              </p>
-            </div>
-          </div>
+              </template>
+            </tbody>
+          </table>
         </div>
 
-        <!-- Observation CSV card -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h2 class="text-lg font-semibold text-gray-700 mb-1">Observation CSV</h2>
-          <p class="text-sm text-gray-400 mb-4">Any CSV with a date column and a numeric observation column.</p>
-
-          <label class="block cursor-pointer">
-            <div
-              class="border-2 border-dashed rounded-lg p-4 text-center transition-colors"
-              :class="obsFile ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-blue-400'"
-            >
-              <input
-                type="file"
-                accept=".csv"
-                class="hidden"
-                @change="pickFile('obs', $event)"
-              >
-              <p class="text-sm text-gray-500" x-show="!obsFile">Click to select a CSV file</p>
-              <p class="text-sm text-blue-700 font-medium" x-show="obsFile" x-text="obsFile?.name"></p>
-            </div>
-          </label>
-
-          <!-- Columns detected badge -->
-          <div x-show="obsColumns.length > 0" class="mt-3 flex items-center gap-2">
-            <span class="inline-block bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded">
-              <span x-text="obsColumns.length"></span> columns detected
-            </span>
-          </div>
-
-          <!-- Preview table -->
-          <div x-show="obsPreview.length > 0" class="mt-4 overflow-x-auto">
-            <p class="text-xs font-medium text-gray-500 mb-1">Preview (first 5 rows)</p>
-            <table class="border-collapse w-full text-xs">
-              <thead>
-                <tr class="bg-gray-50">
-                  <template x-for="col in previewHeaders('obs')" :key="col">
-                    <th class="border border-gray-200 px-2 py-1 text-left text-gray-600 font-medium" x-text="col"></th>
-                  </template>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="(row, i) in obsPreview" :key="i">
-                  <tr class="hover:bg-gray-50">
-                    <template x-for="col in previewHeaders('obs')" :key="col">
-                      <td class="border border-gray-200 px-2 py-1 text-gray-700" x-text="row[col] ?? ''"></td>
-                    </template>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Column selectors -->
-          <div x-show="obsColumns.length > 0" class="mt-4 space-y-3">
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">Date column</label>
-              <select x-model="obsDateCol" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <template x-for="col in obsColumns" :key="col">
-                  <option :value="col" x-text="col"></option>
-                </template>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">Value column (variable to reanalyse)</label>
-              <select x-model="obsValueCol" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <template x-for="col in obsNumericCols" :key="col">
-                  <option :value="col" x-text="col"></option>
-                </template>
-              </select>
-              <p x-show="obsNumericCols.length === 0 && obsColumns.length > 0" class="text-xs text-amber-600 mt-1">
-                No numeric columns detected. Verify your value column selection carefully.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Dataset name + Next button -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Dataset / run name</label>
-          <input
-            type="text"
-            x-model="stationName"
-            class="border rounded px-3 py-2 w-full sm:w-80 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            placeholder="MyDataset"
-          >
-          <p class="text-xs text-gray-400 mt-1">Used as a label in output filenames and plots.</p>
-        </div>
-
-        <button
-          @click="step = 1"
-          :disabled="!canProceed"
-          class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
-        >
-          Next: Hyperparameters
-        </button>
-
-        <p x-show="!canProceed" class="text-xs text-gray-400 mt-2">
-          Upload both CSVs and select date + value columns to continue.
-        </p>
-      </div>
-    </div><!-- /step 0 -->
-
-    <!-- ================================================================ -->
-    <!-- STEP 1: Hyperparameters                                           -->
-    <!-- ================================================================ -->
-    <div x-show="step === 1" x-cloak>
-      <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-700 mb-1">Hyperparameters</h2>
-        <p class="text-sm text-gray-400 mb-6">Defaults are tuned for daily time-series data. Adjust only if needed.</p>
-
-        <!-- LSTM Architecture & Training -->
-        <div class="mb-6">
-          <h3 class="text-base font-semibold text-gray-600 mb-4 border-b pb-2">LSTM Architecture &amp; Training</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            <!-- Lookback -->
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">
-                Lookback window (time steps):
-                <span class="text-blue-600 font-bold" x-text="hyperparams.lookback"></span>
-              </label>
-              <input
-                type="range" min="5" max="60" step="1"
-                x-model.number="hyperparams.lookback"
-                class="w-full accent-blue-600"
-              >
-              <p class="text-xs text-gray-400 mt-1">Number of past time steps fed as input to the LSTM.</p>
-            </div>
-
-            <!-- LSTM units -->
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">LSTM units</label>
-              <select x-model.number="hyperparams.lstm_units" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <option :value="32">32</option>
-                <option :value="64">64</option>
-                <option :value="128">128</option>
-                <option :value="256">256</option>
-              </select>
-            </div>
-
-            <!-- Dense units -->
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">Dense units</label>
-              <select x-model.number="hyperparams.dense_units" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <option :value="32">32</option>
-                <option :value="64">64</option>
-                <option :value="128">128</option>
-              </select>
-            </div>
-
-            <!-- Learning rate -->
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">Learning rate</label>
-              <select x-model.number="hyperparams.learning_rate" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <option :value="0.0001">0.0001</option>
-                <option :value="0.0005">0.0005</option>
-                <option :value="0.001">0.001 (default)</option>
-                <option :value="0.005">0.005</option>
-                <option :value="0.01">0.01</option>
-              </select>
-            </div>
-
-            <!-- Batch size -->
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">Batch size</label>
-              <select x-model.number="hyperparams.batch_size" class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <option :value="16">16</option>
-                <option :value="32">32</option>
-                <option :value="64">64</option>
-              </select>
-            </div>
-
-            <!-- Max epochs -->
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">
-                Max epochs:
-                <span class="text-blue-600 font-bold" x-text="hyperparams.epochs"></span>
-              </label>
-              <input
-                type="range" min="50" max="500" step="10"
-                x-model.number="hyperparams.epochs"
-                class="w-full accent-blue-600"
-              >
-            </div>
-
-            <!-- Patience -->
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">
-                Early stopping patience:
-                <span class="text-blue-600 font-bold" x-text="hyperparams.patience"></span>
-              </label>
-              <input
-                type="range" min="5" max="50" step="1"
-                x-model.number="hyperparams.patience"
-                class="w-full accent-blue-600"
-              >
-              <p class="text-xs text-gray-400 mt-1">Stop if val loss does not improve for this many epochs.</p>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- EnKF Settings -->
-        <div class="mb-6">
-          <h3 class="text-base font-semibold text-gray-600 mb-4 border-b pb-2">Ensemble Kalman Filter (EnKF)</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            <!-- Ensemble members -->
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">
-                Ensemble members:
-                <span class="text-blue-600 font-bold" x-text="hyperparams.n_ensemble"></span>
-              </label>
-              <input
-                type="range" min="10" max="200" step="5"
-                x-model.number="hyperparams.n_ensemble"
-                class="w-full accent-blue-600"
-              >
-              <p class="text-xs text-gray-400 mt-1">More members = better uncertainty estimate but slower.</p>
-            </div>
-
-            <!-- Obs error factor -->
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">
-                Observation error factor (R):
-                <span class="text-blue-600 font-bold" x-text="hyperparams.obs_error_factor.toFixed(2)"></span>
-              </label>
-              <input
-                type="range" min="0.05" max="1.0" step="0.05"
-                x-model.number="hyperparams.obs_error_factor"
-                class="w-full accent-blue-600"
-              >
-              <p class="text-xs text-gray-400 mt-1">R = factor x Var(obs). Higher = trust model more.</p>
-            </div>
-
-            <!-- Train fraction -->
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">
-                Train fraction:
-                <span class="text-blue-600 font-bold" x-text="hyperparams.train_fraction.toFixed(2)"></span>
-              </label>
-              <input
-                type="range" min="0.5" max="0.9" step="0.05"
-                x-model.number="hyperparams.train_fraction"
-                class="w-full accent-blue-600"
-              >
-            </div>
-
-            <!-- Min overlap -->
-            <div>
-              <label class="block text-sm font-medium text-gray-600 mb-1">
-                Min overlap (time steps):
-                <span class="text-blue-600 font-bold" x-text="hyperparams.min_overlap_days"></span>
-              </label>
-              <input
-                type="range" min="10" max="100" step="1"
-                x-model.number="hyperparams.min_overlap_days"
-                class="w-full accent-blue-600"
-              >
-              <p class="text-xs text-gray-400 mt-1">Minimum time steps where model and observations overlap.</p>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- Seed -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Random seed</label>
-          <input
-            type="number" min="0"
-            x-model.number="seed"
-            class="border rounded px-3 py-2 w-32 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-          >
-        </div>
-
-        <!-- Navigation -->
-        <div class="flex items-center gap-4 pt-4 border-t">
-          <button
-            @click="step = 0"
-            class="border border-gray-300 text-gray-600 px-5 py-2 rounded hover:bg-gray-50 font-medium transition-colors"
-          >
-            Back
-          </button>
-          <button
-            @click="startRun()"
-            :disabled="isRunning"
-            class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
-          >
-            <span x-show="!isRunning">Run Reanalysis</span>
-            <span x-show="isRunning">Starting...</span>
-          </button>
-        </div>
-      </div>
-    </div><!-- /step 1 -->
-
-    <!-- ================================================================ -->
-    <!-- STEP 2: Running                                                   -->
-    <!-- ================================================================ -->
-    <div x-show="step === 2" x-cloak>
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3">
-            <!-- Pulsing indicator -->
-            <span class="relative flex h-3 w-3">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-600"></span>
-            </span>
-            <h2 class="text-xl font-semibold text-gray-700">Running Pipeline...</h2>
-          </div>
-          <button
-            @click="cancel()"
-            class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 font-medium text-sm transition-colors"
-          >
-            Stop
-          </button>
-        </div>
-
-        <p class="text-sm text-gray-400 mb-4">
-          The LSTM is training and the EnKF is running. This may take several minutes depending on your dataset size and hardware.
-        </p>
-
-        <!-- Log panel -->
-        <div class="mb-3 flex items-center justify-between">
-          <p class="text-xs font-medium text-gray-500">Pipeline output</p>
-          <span class="text-xs text-gray-400">
-            <span x-text="logLines.length"></span> lines
-          </span>
-        </div>
-
-        <pre
-          x-text="logLines.slice(-30).join('\n')"
-          x-ref="logPanel"
-          class="bg-gray-900 text-green-400 p-4 rounded overflow-y-auto max-h-96 font-mono text-sm whitespace-pre-wrap"
-        >Initializing TensorFlow and loading data...</pre>
-
-        <!-- Auto-scroll log to bottom on update -->
-        <div x-init="$watch('logLines', () => { $nextTick(() => { $refs.logPanel && ($refs.logPanel.scrollTop = $refs.logPanel.scrollHeight) }) })"></div>
-      </div>
-    </div><!-- /step 2 -->
-
-    <!-- ================================================================ -->
-    <!-- STEP 3: Results                                                   -->
-    <!-- ================================================================ -->
-    <div x-show="step === 3" x-cloak>
-      <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">Results</h2>
-
-        <!-- Metrics grid -->
-        <div x-show="resultMetrics" class="mb-6">
-          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Summary Metrics</h3>
-          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-
-            <div class="bg-blue-50 rounded-lg p-4 text-center">
-              <p class="text-xs text-gray-500 mb-1">Time Steps</p>
-              <p class="text-2xl font-bold text-blue-700" x-text="resultMetrics?.T?.toLocaleString() ?? '—'"></p>
-            </div>
-
-            <div class="bg-blue-50 rounded-lg p-4 text-center">
-              <p class="text-xs text-gray-500 mb-1">Observations</p>
-              <p class="text-2xl font-bold text-blue-700" x-text="resultMetrics?.obs_count?.toLocaleString() ?? '—'"></p>
-            </div>
-
-            <div class="bg-blue-50 rounded-lg p-4 text-center">
-              <p class="text-xs text-gray-500 mb-1">Sparse?</p>
-              <p class="text-2xl font-bold text-blue-700" x-text="resultMetrics?.is_sparse ? 'Yes' : 'No'"></p>
-            </div>
-
-            <div class="bg-blue-50 rounded-lg p-4 text-center">
-              <p class="text-xs text-gray-500 mb-1">Best Val Loss</p>
-              <p class="text-2xl font-bold text-blue-700" x-text="resultMetrics?.best_val_loss != null ? Number(resultMetrics.best_val_loss).toFixed(5) : '—'"></p>
-            </div>
-
-            <div class="bg-blue-50 rounded-lg p-4 text-center">
-              <p class="text-xs text-gray-500 mb-1">Stopped Epoch</p>
-              <p class="text-2xl font-bold text-blue-700" x-text="resultMetrics?.stopped_epoch ?? '—'"></p>
-            </div>
-
-            <div class="bg-blue-50 rounded-lg p-4 text-center">
-              <p class="text-xs text-gray-500 mb-1">CI Mean Width</p>
-              <p class="text-2xl font-bold text-blue-700" x-text="resultMetrics?.ci_mean_width != null ? Number(resultMetrics.ci_mean_width).toFixed(4) : '—'"></p>
-            </div>
-
-          </div>
-        </div>
-
-        <div x-show="!resultMetrics" class="mb-6 p-4 bg-gray-50 rounded text-sm text-gray-500">
-          No summary metrics available.
-        </div>
-
-        <p class="text-sm text-gray-500 mb-6">
-          Your reanalysis outputs have been saved to the server's temporary output directory. Download your results from the server or check the console for the output path.
-        </p>
-
-        <button
-          @click="step = 0; logLines = []; resultMetrics = null;"
-          class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-medium transition-colors"
-        >
-          Run Another Analysis
-        </button>
-      </div>
-    </div><!-- /step 3 -->
-
-    <!-- ================================================================ -->
-    <!-- ERROR STATE                                                       -->
-    <!-- ================================================================ -->
-    <div x-show="step === 'error'" x-cloak>
-      <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
-        <div class="flex items-start gap-4 mb-4">
-          <div class="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-            <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z"/>
-            </svg>
+        <!-- Column selectors -->
+        <div x-show="modelColumns.length > 0" style="margin-top:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+          <div>
+            <label class="field-label">Date column</label>
+            <select x-model="modelDateCol">
+              <template x-for="col in modelColumns" :key="col">
+                <option :value="col" x-text="col"></option>
+              </template>
+            </select>
           </div>
           <div>
-            <h2 class="text-xl font-semibold text-gray-800">The pipeline encountered an error.</h2>
-            <p class="text-sm text-gray-500 mt-1">
-              This is usually caused by incompatible column data types, insufficient overlap between model and observation dates, or an out-of-memory condition.
+            <label class="field-label">Value column <span style="font-weight:400;">(variable to reanalyse)</span></label>
+            <select x-model="modelValueCol">
+              <template x-for="col in modelNumericCols" :key="col">
+                <option :value="col" x-text="col"></option>
+              </template>
+            </select>
+            <p x-show="modelNumericCols.length === 0 && modelColumns.length > 0" class="hint" style="color:#d97706;">
+              No numeric columns detected — verify selection carefully.
             </p>
           </div>
         </div>
+      </div>
 
-        <!-- Collapsible traceback (per D-18) -->
-        <div class="mt-4 mb-6">
-        <details>
-          <summary class="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-800 select-none">
-            Show technical details
-          </summary>
-          <pre
-            x-text="errorTrace"
-            class="mt-3 bg-gray-900 text-red-300 p-4 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap max-h-80 overflow-y-auto"
-          ></pre>
-        </details>
+      <!-- Observation CSV -->
+      <div class="panel" style="padding:1.5rem;">
+        <p class="label-caps" style="margin-bottom:0.75rem;">Observation CSV</p>
+        <p style="font-size:0.875rem; color:var(--text-secondary); margin:0 0 1rem;">
+          Field measurements — any date column + numeric observation column.
+        </p>
+
+        <label style="display:block; cursor:pointer;">
+          <div class="upload-zone" :class="{ 'has-file': obsFile }">
+            <input type="file" accept=".csv" style="display:none;" @change="pickFile('obs', $event)">
+            <span x-show="!obsFile">Select CSV file</span>
+            <span x-show="obsFile" style="font-weight:500;" x-text="obsFile?.name"></span>
+          </div>
+        </label>
+
+        <div x-show="obsColumns.length > 0" style="margin-top:0.625rem;">
+          <span class="badge badge-ok" x-text="obsColumns.length + ' columns detected'"></span>
         </div>
 
-        <button
-          @click="step = 0"
-          class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-medium transition-colors"
-        >
-          Start Over
+        <div x-show="obsPreview.length > 0" style="margin-top:1rem; overflow-x:auto;">
+          <p class="label-caps" style="margin-bottom:0.5rem;">Preview — first 5 rows</p>
+          <table class="dt">
+            <thead>
+              <tr>
+                <template x-for="col in previewHeaders('obs')" :key="col">
+                  <th x-text="col"></th>
+                </template>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(row, i) in obsPreview" :key="i">
+                <tr>
+                  <template x-for="col in previewHeaders('obs')" :key="col">
+                    <td class="num" x-text="row[col] ?? ''"></td>
+                  </template>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <div x-show="obsColumns.length > 0" style="margin-top:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+          <div>
+            <label class="field-label">Date column</label>
+            <select x-model="obsDateCol">
+              <template x-for="col in obsColumns" :key="col">
+                <option :value="col" x-text="col"></option>
+              </template>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">Value column <span style="font-weight:400;">(variable to assimilate)</span></label>
+            <select x-model="obsValueCol">
+              <template x-for="col in obsNumericCols" :key="col">
+                <option :value="col" x-text="col"></option>
+              </template>
+            </select>
+            <p x-show="obsNumericCols.length === 0 && obsColumns.length > 0" class="hint" style="color:#d97706;">
+              No numeric columns detected — verify selection carefully.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /grid -->
+
+    <!-- Dataset name + proceed -->
+    <div class="panel" style="padding:1.5rem;">
+      <div style="margin-bottom:1.25rem; max-width:320px;">
+        <label class="field-label">Run label</label>
+        <input type="text" x-model="stationName" placeholder="MyDataset">
+        <p class="hint">Used as a prefix in output filenames and plots.</p>
+      </div>
+      <div style="display:flex; align-items:center; gap:1rem;">
+        <button class="btn btn-primary" @click="step = 1" :disabled="!canProceed">
+          Continue to Configuration →
+        </button>
+        <p x-show="!canProceed" style="font-size:0.8125rem; color:var(--text-secondary); margin:0;">
+          Upload both CSVs and select columns to continue.
+        </p>
+      </div>
+    </div>
+
+  </div><!-- /step 0 -->
+
+
+  <!-- ============================================================== -->
+  <!-- STEP 1: Hyperparameters                                         -->
+  <!-- ============================================================== -->
+  <div x-show="step === 1" x-cloak>
+    <div class="panel" style="padding:1.75rem;">
+
+      <p class="label-caps" style="margin-bottom:0.3rem;">Model configuration</p>
+      <p style="font-size:0.875rem; color:var(--text-secondary); margin:0 0 1.75rem;">
+        Defaults are calibrated for daily environmental time-series. Adjust only if you have domain-specific reasons.
+      </p>
+
+      <!-- LSTM Architecture -->
+      <p class="label-caps" style="margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">LSTM architecture &amp; training</p>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem 2rem; margin-bottom:1.75rem;">
+
+        <div>
+          <label class="field-label">
+            Lookback window — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.lookback + ' steps'"></span>
+          </label>
+          <input type="range" min="5" max="60" step="1" x-model.number="hyperparams.lookback">
+          <p class="hint">Past time steps used as LSTM input sequence.</p>
+        </div>
+
+        <div>
+          <label class="field-label">LSTM hidden units</label>
+          <select x-model.number="hyperparams.lstm_units">
+            <option :value="32">32</option>
+            <option :value="64">64 (default)</option>
+            <option :value="128">128</option>
+            <option :value="256">256</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="field-label">Dense hidden units</label>
+          <select x-model.number="hyperparams.dense_units">
+            <option :value="32">32</option>
+            <option :value="64">64 (default)</option>
+            <option :value="128">128</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="field-label">Learning rate</label>
+          <select x-model.number="hyperparams.learning_rate">
+            <option :value="0.0001">0.0001</option>
+            <option :value="0.0005">0.0005</option>
+            <option :value="0.001">0.001 (default)</option>
+            <option :value="0.005">0.005</option>
+            <option :value="0.01">0.01</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="field-label">Batch size</label>
+          <select x-model.number="hyperparams.batch_size">
+            <option :value="16">16</option>
+            <option :value="32">32 (default)</option>
+            <option :value="64">64</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="field-label">
+            Max epochs — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.epochs"></span>
+          </label>
+          <input type="range" min="50" max="500" step="10" x-model.number="hyperparams.epochs">
+        </div>
+
+        <div>
+          <label class="field-label">
+            Early stopping patience — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.patience + ' epochs'"></span>
+          </label>
+          <input type="range" min="5" max="50" step="1" x-model.number="hyperparams.patience">
+          <p class="hint">Training stops when validation loss stalls for this many epochs.</p>
+        </div>
+
+      </div>
+
+      <!-- EnKF -->
+      <p class="label-caps" style="margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">Ensemble Kalman Filter</p>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem 2rem; margin-bottom:1.75rem;">
+
+        <div>
+          <label class="field-label">
+            Ensemble members — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.n_ensemble"></span>
+          </label>
+          <input type="range" min="10" max="200" step="5" x-model.number="hyperparams.n_ensemble">
+          <p class="hint">More members improve uncertainty estimates but increase runtime.</p>
+        </div>
+
+        <div>
+          <label class="field-label">
+            Observation error factor R — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.obs_error_factor.toFixed(2)"></span>
+          </label>
+          <input type="range" min="0.05" max="1.0" step="0.05" x-model.number="hyperparams.obs_error_factor">
+          <p class="hint">R = factor × Var(obs). Higher values down-weight observations.</p>
+        </div>
+
+        <div>
+          <label class="field-label">
+            Training fraction — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.train_fraction.toFixed(2)"></span>
+          </label>
+          <input type="range" min="0.5" max="0.9" step="0.05" x-model.number="hyperparams.train_fraction">
+        </div>
+
+        <div>
+          <label class="field-label">
+            Minimum overlap — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.min_overlap_days + ' steps'"></span>
+          </label>
+          <input type="range" min="10" max="100" step="1" x-model.number="hyperparams.min_overlap_days">
+          <p class="hint">Required co-coverage between model output and observations.</p>
+        </div>
+
+      </div>
+
+      <!-- Seed -->
+      <p class="label-caps" style="margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">Reproducibility</p>
+      <div style="margin-bottom:1.75rem; max-width:180px;">
+        <label class="field-label">Random seed</label>
+        <input type="number" min="0" x-model.number="seed">
+        <p class="hint">Fixes NumPy and TensorFlow random state.</p>
+      </div>
+
+      <!-- Navigation -->
+      <div style="display:flex; gap:0.875rem; align-items:center; padding-top:1.25rem; border-top:1px solid var(--border);">
+        <button class="btn btn-ghost" @click="step = 0">← Back</button>
+        <button class="btn btn-primary" @click="startRun()" :disabled="isRunning">
+          <span x-show="!isRunning">Run Reanalysis</span>
+          <span x-show="isRunning">Starting…</span>
         </button>
       </div>
-    </div><!-- /error state -->
 
-  </div><!-- /max-w-5xl container -->
+    </div>
+  </div><!-- /step 1 -->
+
+
+  <!-- ============================================================== -->
+  <!-- STEP 2: Running                                                 -->
+  <!-- ============================================================== -->
+  <div x-show="step === 2" x-cloak>
+    <div class="panel" style="padding:1.75rem;">
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <!-- Minimal pulse indicator -->
+          <span style="position:relative; display:inline-flex; width:10px; height:10px;">
+            <span style="position:absolute; inset:0; border-radius:50%; background:var(--accent); opacity:0.4; animation:ping 1.4s cubic-bezier(0,0,0.2,1) infinite;"></span>
+            <span style="position:relative; width:10px; height:10px; border-radius:50%; background:var(--accent); display:inline-block;"></span>
+          </span>
+          <span style="font-weight:600;">Pipeline running</span>
+        </div>
+        <button class="btn btn-stop" @click="cancel()">Stop</button>
+      </div>
+
+      <p style="font-size:0.875rem; color:var(--text-secondary); margin:0 0 1rem;">
+        LSTM training and EnKF execution in progress. Runtime depends on dataset size and available hardware.
+      </p>
+
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.5rem;">
+        <span class="label-caps">Pipeline output</span>
+        <span style="font-size:0.75rem; color:var(--text-secondary); font-family:'JetBrains Mono',monospace;" x-text="logLines.length + ' lines'"></span>
+      </div>
+
+      <pre
+        class="log-terminal"
+        x-text="logLines.slice(-40).join('\n')"
+        x-ref="logPanel"
+      >Initializing…</pre>
+
+      <div x-init="$watch('logLines', () => { $nextTick(() => { $refs.logPanel && ($refs.logPanel.scrollTop = $refs.logPanel.scrollHeight) }) })"></div>
+    </div>
+  </div><!-- /step 2 -->
+
+  <style>
+    @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+  </style>
+
+
+  <!-- ============================================================== -->
+  <!-- STEP 3: Results                                                 -->
+  <!-- ============================================================== -->
+  <div x-show="step === 3" x-cloak>
+
+    <!-- Title -->
+    <div style="margin-bottom:1.5rem;">
+      <h1 style="font-size:1.5rem; margin-bottom:0.25rem;" x-text="'Results — ' + stationName"></h1>
+      <p style="font-size:0.875rem; color:var(--text-secondary); margin:0;">
+        LSTM + EnKF reanalysis complete. 95% confidence interval derived from
+        <span x-text="hyperparams.n_ensemble"></span>-member ensemble.
+      </p>
+    </div>
+
+    <!-- ── Metrics summary row ─────────────────────────────────── -->
+    <div x-show="resultMetrics" style="margin-bottom:1.5rem;">
+      <p class="label-caps" style="margin-bottom:0.625rem;">Summary</p>
+      <div class="metrics-row">
+        <div class="metric-cell">
+          <div class="m-label">Time Steps</div>
+          <div class="m-value" x-text="resultMetrics?.T?.toLocaleString() ?? '—'"></div>
+        </div>
+        <div class="metric-cell">
+          <div class="m-label">Observations</div>
+          <div class="m-value" x-text="resultMetrics?.obs_count?.toLocaleString() ?? '—'"></div>
+        </div>
+        <div class="metric-cell">
+          <div class="m-label">Obs Density</div>
+          <div class="m-value">
+            <span x-show="resultMetrics?.is_sparse" class="badge badge-warn" style="font-size:0.8125rem;">Sparse</span>
+            <span x-show="!resultMetrics?.is_sparse" class="badge badge-ok" style="font-size:0.8125rem;">Dense</span>
+          </div>
+        </div>
+        <div class="metric-cell">
+          <div class="m-label">Best Val Loss</div>
+          <div class="m-value" x-text="resultMetrics?.best_val_loss != null ? Number(resultMetrics.best_val_loss).toExponential(2) : '—'"></div>
+        </div>
+        <div class="metric-cell">
+          <div class="m-label">Stopped Epoch</div>
+          <div class="m-value" x-text="resultMetrics?.stopped_epoch ?? '—'"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Per-metric results table ────────────────────────────── -->
+    <div x-show="resultMetrics" style="margin-bottom:1.5rem;">
+      <p class="label-caps" style="margin-bottom:0.625rem;">Run metrics</p>
+      <div class="panel" style="overflow:hidden;">
+        <table class="dt">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Value</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Time steps (T)</td>
+              <td class="num" x-text="resultMetrics?.T?.toLocaleString() ?? '—'"></td>
+              <td style="color:var(--text-secondary);">Total daily records in reanalysis period</td>
+            </tr>
+            <tr>
+              <td>Observation count</td>
+              <td class="num" x-text="resultMetrics?.obs_count?.toLocaleString() ?? '—'"></td>
+              <td style="color:var(--text-secondary);">Non-null observation rows assimilated</td>
+            </tr>
+            <tr>
+              <td>Sparse regime</td>
+              <td x-text="resultMetrics?.is_sparse ? 'Yes' : 'No'"></td>
+              <td style="color:var(--text-secondary);">Obs density &lt; 50% of model timesteps</td>
+            </tr>
+            <tr>
+              <td>Best validation loss</td>
+              <td class="num" x-text="resultMetrics?.best_val_loss != null ? Number(resultMetrics.best_val_loss).toFixed(6) : '—'"></td>
+              <td style="color:var(--text-secondary);">MSE on held-out validation split</td>
+            </tr>
+            <tr>
+              <td>Stopped epoch</td>
+              <td class="num" x-text="resultMetrics?.stopped_epoch ?? '—'"></td>
+              <td style="color:var(--text-secondary);">Early stopping triggered at this epoch</td>
+            </tr>
+            <tr>
+              <td>CI mean width</td>
+              <td class="num" x-text="resultMetrics?.ci_mean_width != null ? Number(resultMetrics.ci_mean_width).toFixed(4) : '—'"></td>
+              <td style="color:var(--text-secondary);">Average width of 95% CI (physical units)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Confidence interval section ─────────────────────────── -->
+    <div x-show="resultMetrics && resultMetrics.ci_mean_width != null" style="margin-bottom:1.5rem;">
+      <p class="label-caps" style="margin-bottom:0.625rem;">Confidence interval distribution</p>
+      <div class="panel" style="padding:1.25rem 1.5rem;">
+
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.75rem;">
+          <span style="font-size:0.875rem; color:var(--text-secondary);">Mean 95% CI width</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:1rem; font-weight:500;" x-text="resultMetrics?.ci_mean_width != null ? Number(resultMetrics.ci_mean_width).toFixed(4) : ''"></span>
+        </div>
+
+        <!-- Normalised width bar: capped at a reference of 2× mean → bar fills to 50% at mean -->
+        <div class="ci-bar-track">
+          <div class="ci-bar-fill" :style="'width:' + Math.min(100, (resultMetrics?.ci_mean_width / (resultMetrics?.ci_mean_width * 2)) * 100) + '%'"></div>
+        </div>
+
+        <p style="font-size:0.8125rem; color:var(--text-secondary); margin:0.875rem 0 0;">
+          Derived from the 2.5th and 97.5th percentiles of the
+          <span x-text="hyperparams.n_ensemble"></span>-member EnKF ensemble at each time step.
+          Narrower intervals indicate higher model confidence; wider intervals reflect greater structural uncertainty or sparse observation coverage.
+        </p>
+      </div>
+    </div>
+
+    <!-- No metrics fallback -->
+    <div x-show="!resultMetrics" style="margin-bottom:1.5rem;" class="panel">
+      <div style="padding:1.25rem; font-size:0.875rem; color:var(--text-secondary);">
+        No summary metrics returned. Output files have been written to the server's temporary directory.
+      </div>
+    </div>
+
+    <!-- Action -->
+    <button
+      class="btn btn-ghost"
+      @click="step = 0; logLines = []; resultMetrics = null;"
+    >
+      ← Run another analysis
+    </button>
+
+  </div><!-- /step 3 -->
+
+
+  <!-- ============================================================== -->
+  <!-- ERROR STATE                                                     -->
+  <!-- ============================================================== -->
+  <div x-show="step === 'error'" x-cloak>
+    <div class="panel" style="padding:1.75rem; border-left:3px solid #dc2626;">
+
+      <p class="label-caps" style="color:#dc2626; margin-bottom:0.5rem;">Pipeline error</p>
+      <p style="font-weight:500; margin:0 0 0.5rem;">The pipeline encountered an error and could not complete.</p>
+      <p style="font-size:0.875rem; color:var(--text-secondary); margin:0 0 1.25rem;">
+        Common causes: incompatible column data types, insufficient date overlap between model and observations, or an out-of-memory condition during training.
+      </p>
+
+      <!-- Collapsible traceback -->
+      <details style="margin-bottom:1.5rem;">
+        <summary style="cursor:pointer; font-size:0.875rem; font-weight:500; color:var(--text-secondary); user-select:none; list-style:none; display:flex; align-items:center; gap:0.4rem;">
+          <span>▶</span> Show technical details
+        </summary>
+        <pre
+          x-text="errorTrace"
+          style="margin-top:0.875rem; background:#111; color:#f87171; font-family:'JetBrains Mono',monospace; font-size:0.75rem; padding:1rem; border-radius:3px; overflow-x:auto; white-space:pre-wrap; max-height:18rem; overflow-y:auto; border:1px solid #2a2a2a;"
+        ></pre>
+      </details>
+
+      <button class="btn btn-ghost" @click="step = 0">← Return to upload</button>
+    </div>
+  </div><!-- /error state -->
+
+</div><!-- /page shell -->
 
 </body>
 </html>
