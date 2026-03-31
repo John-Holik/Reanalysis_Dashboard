@@ -6,10 +6,9 @@ from .preprocessing import (
     resample_model_to_daily, align_dense, align_sparse,
     standardize, build_sequences, train_val_split,
 )
-from .lstm_model import (
-    build_forecast_lstm, train_forecast_lstm, estimate_process_noise,
-)
+from .forecast_models import build_model, train_model, estimate_process_noise
 from .enkf import compute_obs_error, run_enkf
+from .particle_filter import run_particle_filter
 from .openloop import run_openloop
 from .postprocessing import (
     inverse_transform, compute_ci_bounds, compute_ci_integral, export_results,
@@ -103,49 +102,57 @@ def run_single_reanalysis(model_df, obs_df, variable, station_name,
         obs_std, mdl_std, scaler = standardize(obs_vals, mdl_vals)
     _check_stop()
 
-    # --- Step 4: Build sequences & train LSTM ---
+    # --- Step 4: Build sequences & train forecast model ---
     X_all, y_all = build_sequences(mdl_std, lookback)
     X_train, X_val, y_train, y_val = train_val_split(
         X_all, y_all, hyperparams["train_fraction"]
     )
     print(f"  Sequences: {X_all.shape[0]} total, {X_train.shape[0]} train, {X_val.shape[0]} val")
 
-    lstm = build_forecast_lstm(
-        lookback=lookback,
-        lstm_units=hyperparams["lstm_units"],
-        dense_units=hyperparams["dense_units"],
-        lr=hyperparams["learning_rate"],
+    model_type = hyperparams.get("model_type", "lstm")
+    forecast_model = build_model(model_type, hyperparams)
+    train_result = train_model(
+        forecast_model, X_train, y_train, X_val, y_val, hyperparams, model_type
     )
-    history = train_forecast_lstm(
-        lstm, X_train, y_train, X_val, y_val,
-        epochs=hyperparams["epochs"],
-        batch_size=hyperparams["batch_size"],
-        patience=hyperparams["patience"],
-        verbose=0,
-    )
-    best_val = min(history.history["val_loss"])
-    stopped_epoch = len(history.history["loss"])
-    print(f"  LSTM trained — stopped at epoch {stopped_epoch}, best val_loss={best_val:.6f}")
+
+    best_val = None
+    stopped_epoch = None
+    if model_type == "lstm":
+        best_val = min(train_result.history["val_loss"])
+        stopped_epoch = len(train_result.history["loss"])
+        print(f"  LSTM trained — stopped at epoch {stopped_epoch}, best val_loss={best_val:.6f}")
+    else:
+        print(f"  {model_type} trained.")
     _check_stop()
 
     # --- Step 5: Estimate Q and R ---
-    Q = estimate_process_noise(lstm, X_train, y_train)
+    Q = estimate_process_noise(forecast_model, X_train, y_train)
     R = compute_obs_error(obs_std, factor=obs_err_factor)
     print(f"  Q = {Q:.6f} (std={np.sqrt(Q):.4f}), R = {R:.6f} (std={np.sqrt(R):.4f})")
     _check_stop()
 
-    # --- Step 6: Run EnKF ---
-    print(f"  Running EnKF — {n_ensemble} members × {T} steps...")
-    ens_analysis, ens_forecast = run_enkf(
-        lstm, obs_std, mdl_std, Q, R, lookback,
-        n_ensemble=n_ensemble, seed=seed,
-    )
-    print(f"  EnKF complete.")
+    # --- Step 6: Run filter ---
+    filter_type = hyperparams.get("filter_type", "enkf")
+    if filter_type == "particle_filter":
+        n_particles = hyperparams.get("n_particles", 500)
+        print(f"  Running Particle Filter — {n_particles} particles × {T} steps...")
+        ens_analysis, ens_forecast = run_particle_filter(
+            forecast_model, obs_std, mdl_std, Q, R, lookback,
+            n_particles=n_particles, seed=seed,
+        )
+        print(f"  Particle Filter complete.")
+    else:
+        print(f"  Running EnKF — {n_ensemble} members × {T} steps...")
+        ens_analysis, ens_forecast = run_enkf(
+            forecast_model, obs_std, mdl_std, Q, R, lookback,
+            n_ensemble=n_ensemble, seed=seed,
+        )
+        print(f"  EnKF complete.")
     _check_stop()
 
     # --- Step 7: Open-loop baseline ---
     print(f"  Running open-loop baseline...")
-    openloop_std = run_openloop(lstm, mdl_std, Q, lookback, seed=seed)
+    openloop_std = run_openloop(forecast_model, mdl_std, Q, lookback, seed=seed)
     print(f"  Open-loop complete.")
     _check_stop()
 
@@ -164,8 +171,9 @@ def run_single_reanalysis(model_df, obs_df, variable, station_name,
     mdl_phys = mdl_vals.copy()
 
     # Full ensemble -> physical units
+    n_members = ens_analysis.shape[1]
     ens_phys = np.zeros_like(ens_analysis)
-    for m in range(n_ensemble):
+    for m in range(n_members):
         ens_phys[:, m] = inverse_transform(ens_analysis[:, m], scaler)
     _check_stop()
 
@@ -207,6 +215,8 @@ def run_single_reanalysis(model_df, obs_df, variable, station_name,
         "is_sparse": is_sparse,
         "Q": Q,
         "R": R,
+        "model_type": model_type,
+        "filter_type": filter_type,
         "best_val_loss": best_val,
         "stopped_epoch": stopped_epoch,
         "ci_integral": ci_stats["integral"],

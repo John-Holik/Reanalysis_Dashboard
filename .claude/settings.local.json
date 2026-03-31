@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(for f:*)",
+      "Bash(do)",
+      "Read(//c/Users/John/Desktop/Claude_Projects/Senior_Project/.planning/codebase/**)",
+      "Bash(echo \"MISSING: $f\")",
+      "Bash(done)"
     ]
   }
 }

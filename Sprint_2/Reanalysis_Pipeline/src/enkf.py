@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow as tf
 
 
 def compute_obs_error(obs_std, factor=0.2):
@@ -12,20 +11,7 @@ def compute_obs_error(obs_std, factor=0.2):
     return factor * obs_var
 
 
-def _make_fast_predict(lstm_model):
-    """Wrap the LSTM in a @tf.function for fast repeated inference.
-
-    model.predict() has ~10-50ms overhead PER CALL (dataset creation,
-    graph tracing, etc.). A direct model.__call__ compiled with
-    tf.function reduces this to <1ms after the first call.
-    """
-    @tf.function(reduce_retracing=True)
-    def fast_predict(x):
-        return lstm_model(x, training=False)
-    return fast_predict
-
-
-def run_enkf(lstm_model, obs_std, mdl_std, Q, R, lookback,
+def run_enkf(forecast_model, obs_std, mdl_std, Q, R, lookback,
              n_ensemble=50, n_state=1, seed=42):
     """Run Ensemble Kalman Filter with intermittent assimilation.
 
@@ -35,7 +21,10 @@ def run_enkf(lstm_model, obs_std, mdl_std, Q, R, lookback,
 
     Parameters
     ----------
-    lstm_model : trained Keras LSTM model
+    forecast_model : ForecastModel
+        Any model satisfying the ForecastModel protocol (LSTM, XGBoost, etc.).
+        Called via forecast_model.predict_batch(X) where X has shape
+        (n_ensemble, lookback, n_state).
     obs_std : np.ndarray, shape (T, 1)
         Standardized observations. NaN on days without data.
     mdl_std : np.ndarray, shape (T, 1)
@@ -68,12 +57,6 @@ def run_enkf(lstm_model, obs_std, mdl_std, Q, R, lookback,
     histories = np.tile(mdl_std[:lookback].T, (n_ensemble, 1, 1)).transpose(0, 2, 1)
     # shape: (n_ensemble, lookback, n_state)
 
-    # Compile a fast prediction function (avoids predict() overhead)
-    fast_predict = _make_fast_predict(lstm_model)
-
-    # Pre-allocate a persistent tensor to avoid repeated conversion
-    batch_tf = tf.Variable(tf.zeros((n_ensemble, lookback, n_state), dtype=tf.float32))
-
     # Pre-compute constants
     sqrt_Q = np.sqrt(Q)
     sqrt_R = np.sqrt(R)
@@ -82,10 +65,6 @@ def run_enkf(lstm_model, obs_std, mdl_std, Q, R, lookback,
     proc_noise_all = np.random.normal(0, sqrt_Q, size=(T, n_ensemble))
     obs_noise_all = np.random.normal(0, sqrt_R, size=(T, n_ensemble))
 
-    # Warm up the tf.function with a dummy call
-    batch_tf.assign(histories.astype(np.float32))
-    _ = fast_predict(batch_tf)
-
     # Flatten obs to 1-D for fast indexing; pre-compute observation mask
     obs_flat = obs_std[:, 0]
     has_obs_mask = ~np.isnan(obs_flat)
@@ -93,8 +72,7 @@ def run_enkf(lstm_model, obs_std, mdl_std, Q, R, lookback,
     # EnKF loop
     for t in range(lookback, T):
         # -- Forecast step (single batched call) --
-        batch_tf.assign(histories.astype(np.float32))
-        preds = fast_predict(batch_tf).numpy()          # (M, 1)
+        preds = forecast_model.predict_batch(histories)  # (M, 1)
 
         x_f = preds[:, 0] + proc_noise_all[t]           # (M,)
         ens_forecast[t, :] = x_f

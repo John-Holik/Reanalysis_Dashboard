@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **hydrological data assimilation and reanalysis system** for Peace River, Florida. It fuses imperfect model simulations with sparse observations (discharge, Total Nitrogen, Total Phosphorus) using **LSTM neural networks + Ensemble Kalman Filter (EnKF)** to produce optimal reanalysis datasets with uncertainty quantification.
+This is a **Data assimilation and reanalysis system** for csv datasets. It fuses imperfect model simulations with sparse observations using **LSTM neural networks + Ensemble Kalman Filter (EnKF)** to produce optimal reanalysis datasets with uncertainty quantification.
 
 ## Running the Pipeline
 
@@ -75,6 +75,7 @@ Stations are defined with per-variable observation metadata (file path, filter c
 | 02296750 | Arcadia | discharge (daily), TN (monthly), TP (monthly) |
 | 270318081593100 | Ft Ogden RM14.82 | TN (monthly), TP (monthly) |
 | 02297330 | Ft Ogden | TN/TP (missing data) |
+
 
 <!-- GSD:project-start source:PROJECT.md -->
 ## Project

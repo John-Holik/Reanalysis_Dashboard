@@ -4,179 +4,217 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reanalysis Dashboard</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
   <style>
-    /* ── Design tokens ────────────────────────────────────────── */
-    :root {
-      --bg:           #fafaf8;
-      --surface:      #ffffff;
-      --border:       #e5e3dc;
-      --text-primary: #1a1a1a;
-      --text-secondary:#6b6860;
-      --accent:       #2563eb;
-      --accent-muted: #eff6ff;
-    }
-
-    *, *::before, *::after { box-sizing: border-box; }
-
-    body {
-      background: var(--bg);
-      color: var(--text-primary);
-      font-family: 'IBM Plex Sans', sans-serif;
-      font-size: 0.9375rem;
-      line-height: 1.6;
-      margin: 0;
-    }
-    h1 { font-family: 'DM Serif Display', serif; font-weight: 400; margin: 0; }
-    pre, code, .mono { font-family: 'JetBrains Mono', monospace; }
     [x-cloak] { display: none !important; }
 
-    /* ── Panel (bordered section, no heavy shadow) ────────────── */
-    .panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    body {
+      font-family: 'Fira Sans', system-ui, sans-serif;
+      background-color: #F8FAFC;
+      background-image: radial-gradient(#CBD5E1 1px, transparent 1px);
+      background-size: 28px 28px;
     }
 
-    /* ── Step breadcrumb ──────────────────────────────────────── */
-    .step-nav {
-      display: flex;
-      gap: 2rem;
-      padding-bottom: 0.875rem;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 2.5rem;
-    }
-    .step-nav .sn {
-      font-size: 0.8125rem;
-      color: var(--text-secondary);
-      padding-bottom: 0.6875rem;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -0.9375rem;
-      transition: color 150ms ease;
-    }
-    .step-nav .sn.active {
-      color: var(--text-primary);
-      font-weight: 600;
-      border-bottom-color: var(--accent);
-    }
-    .step-nav .sn.sn-link { cursor: pointer; }
-    .step-nav .sn.sn-link:hover { color: var(--text-primary); }
+    .font-mono { font-family: 'Fira Code', 'Courier New', monospace !important; }
+    pre, code { font-family: 'Fira Code', 'Courier New', monospace; }
 
-    /* ── Typography helpers ───────────────────────────────────── */
-    .label-caps {
-      font-size: 0.6875rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: var(--text-secondary);
-    }
-    .field-label {
-      display: block;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      color: var(--text-secondary);
-      margin-bottom: 0.3rem;
-    }
-    .hint { font-size: 0.8125rem; color: var(--text-secondary); margin-top: 0.3rem; }
-
-    /* ── Form controls ────────────────────────────────────────── */
-    select,
-    input[type="text"],
-    input[type="number"] {
-      font-family: inherit;
-      font-size: 0.875rem;
-      color: var(--text-primary);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      padding: 0.375rem 0.625rem;
-      width: 100%;
-      outline: none;
-      transition: border-color 150ms ease;
-    }
-    select:focus, input:focus { border-color: var(--accent); }
-    input[type="range"] { accent-color: var(--accent); width: 100%; }
-
-    /* ── Buttons ──────────────────────────────────────────────── */
-    .btn { font-family: inherit; font-size: 0.875rem; font-weight: 500; border-radius: 3px; cursor: pointer; transition: all 150ms ease; }
-    .btn-primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); padding: 0.4375rem 1.25rem; }
-    .btn-primary:hover { opacity: 0.85; }
-    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
-    .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); padding: 0.4375rem 1.125rem; }
-    .btn-ghost:hover { border-color: var(--text-secondary); color: var(--text-primary); }
-    .btn-stop { background: transparent; color: #dc2626; border: 1px solid #fca5a5; padding: 0.3125rem 0.875rem; font-size: 0.8125rem; }
-    .btn-stop:hover { background: #fef2f2; border-color: #dc2626; }
-
-    /* ── Upload zone ──────────────────────────────────────────── */
-    .upload-zone {
-      border: 1px dashed var(--border);
-      border-radius: 3px;
-      padding: 1.25rem 1rem;
-      text-align: center;
+    /* Amber-thumbed range slider */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 3px;
+      background: #E2E8F0;
+      border-radius: 2px;
       cursor: pointer;
-      font-size: 0.875rem;
-      color: var(--text-secondary);
-      transition: all 150ms ease;
+      width: 100%;
     }
-    .upload-zone:hover { border-color: var(--accent); background: var(--accent-muted); color: var(--accent); border-style: solid; }
-    .upload-zone.has-file { border-color: var(--accent); background: var(--accent-muted); color: var(--accent); border-style: solid; }
-
-    /* ── Data tables (zebra, tight, left-aligned) ─────────────── */
-    table.dt { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
-    table.dt th {
-      font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.05em; color: var(--text-secondary);
-      border-bottom: 2px solid var(--border); padding: 0.5rem 0.75rem;
-      text-align: left; background: var(--bg);
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: #F59E0B;
+      border: 2px solid #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+      cursor: pointer;
+      transition: background 150ms ease;
     }
-    table.dt td { padding: 0.4375rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; }
-    table.dt tr:nth-child(even) td { background: var(--bg); }
-    table.dt tr:last-child td { border-bottom: none; }
-    table.dt td.num { font-variant-numeric: tabular-nums; }
+    input[type="range"]:hover::-webkit-slider-thumb { background: #D97706; }
+    input[type="range"]::-moz-range-thumb {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #F59E0B; border: 2px solid #fff; cursor: pointer;
+    }
 
-    /* ── Metrics summary row ──────────────────────────────────── */
-    .metrics-row { display: flex; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); overflow: hidden; }
-    .metric-cell { flex: 1; padding: 1rem 1.25rem; border-right: 1px solid var(--border); }
-    .metric-cell:last-child { border-right: none; }
-    .metric-cell .m-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-bottom: 0.2rem; }
-    .metric-cell .m-value { font-size: 1.375rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+    /* Amber focus for form controls */
+    select:focus, input[type="text"]:focus, input[type="number"]:focus {
+      outline: none;
+      border-color: #F59E0B !important;
+      box-shadow: 0 0 0 3px rgba(245,158,11,0.15);
+    }
 
-    /* ── Log terminal ─────────────────────────────────────────── */
-    .log-terminal {
-      background: #111;
-      color: #a3e635;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
-      line-height: 1.65;
-      padding: 1rem;
+    /* Details chevron rotate */
+    details.group[open] .chevron { transform: rotate(90deg); }
+    .chevron { transition: transform 200ms ease; display: inline-block; }
+
+    /* ── Dark mode ───────────────────────────────────────── */
+    html.dark body {
+      background-color: #0F172A;
+      background-image: radial-gradient(#1E293B 1px, transparent 1px);
+      background-size: 28px 28px;
+      color: #F1F5F9;
+    }
+    /* Surfaces */
+    html.dark .bg-white     { background-color: #1E293B !important; }
+    html.dark .bg-slate-50  { background-color: #162032 !important; }
+    html.dark .bg-slate-100 { background-color: #1a2535 !important; }
+    html.dark .bg-slate-800 { background-color: #060D15 !important; }
+    html.dark .hover\:bg-slate-50:hover { background-color: #243347 !important; }
+    /* Text */
+    html.dark .text-slate-800 { color: #F1F5F9 !important; }
+    html.dark .text-slate-700 { color: #E2E8F0 !important; }
+    html.dark .text-slate-600 { color: #CBD5E1 !important; }
+    html.dark .text-slate-500 { color: #94A3B8 !important; }
+    html.dark .text-slate-400 { color: #64748B !important; }
+    html.dark .text-slate-300 { color: #475569 !important; }
+    /* Borders */
+    html.dark .border-slate-300,
+    html.dark .border-slate-200 { border-color: #334155 !important; }
+    html.dark .border-slate-100 { border-color: #243044 !important; }
+    /* Step connector & bg-based dividers */
+    html.dark .bg-slate-200 { background-color: #334155 !important; }
+    /* Form controls */
+    html.dark select,
+    html.dark input[type="text"],
+    html.dark input[type="number"] {
+      background-color: #0F172A !important;
+      border-color: #334155 !important;
+      color: #F1F5F9 !important;
+    }
+    html.dark select option { background-color: #1E293B; color: #F1F5F9; }
+    /* Range slider */
+    html.dark input[type="range"] { background: #334155; }
+    /* Amber chips */
+    html.dark .bg-amber-50    { background-color: rgba(245,158,11,0.12) !important; }
+    html.dark .border-amber-200 { border-color: rgba(245,158,11,0.30) !important; }
+    /* Tinted icon backgrounds */
+    html.dark .bg-green-100 { background-color: rgba(34,197,94,0.12)  !important; }
+    html.dark .bg-red-100   { background-color: rgba(239,68,68,0.12)  !important; }
+    html.dark .bg-blue-50   { background-color: rgba(59,130,246,0.10) !important; }
+    /* Shadows deepen on dark backgrounds */
+    html.dark [class*="shadow-["] { box-shadow: 0 2px 20px rgba(0,0,0,0.5) !important; }
+    /* Toggle track off-state */
+    html.dark .toggle-track.off { background: #334155; }
+
+    /* Scrollbars inside preview tables */
+    html.dark .overflow-x-auto {
+      scrollbar-color: #475569 #1E293B; /* Firefox */
+    }
+    html.dark .overflow-x-auto::-webkit-scrollbar {
+      height: 6px;
+    }
+    html.dark .overflow-x-auto::-webkit-scrollbar-track {
+      background: #1E293B;
       border-radius: 3px;
-      max-height: 22rem;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      border: 1px solid #222;
+    }
+    html.dark .overflow-x-auto::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 3px;
+    }
+    html.dark .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+      background: #64748B;
+    }
+    /* Settings panel header icon */
+    html.dark .text-amber-500 { color: #F59E0B !important; }
+    html.dark .dark-elapsed {
+      background-color: rgba(245,158,11,0.18) !important;
+      border-color: rgba(245,158,11,0.45) !important;
+      color: #FCD34D !important;
     }
 
-    /* ── Badge ────────────────────────────────────────────────── */
-    .badge { display: inline-block; font-size: 0.6875rem; font-weight: 500; padding: 0.125rem 0.5rem; border-radius: 2px; }
-    .badge-ok { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
-    .badge-warn { background: #fffbeb; color: #a16207; border: 1px solid #fde68a; }
+    /* ── Accessibility modes ─────────────────────────────── */
+    .access-large-text  { font-size: 18px; }
+    .access-small-text  { font-size: 13px; }
 
-    /* ── CI distribution bar ──────────────────────────────────── */
-    .ci-bar-track { height: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
-    .ci-bar-fill  { height: 100%; background: var(--accent); opacity: 0.45; border-radius: 4px; transition: width 400ms ease; }
+    .access-high-contrast body,
+    .access-high-contrast { background-color: #fff !important; }
+    .access-high-contrast .bg-white        { background-color: #ffffff !important; }
+    .access-high-contrast .bg-slate-50     { background-color: #f0f0f0 !important; }
+    .access-high-contrast .text-slate-400,
+    .access-high-contrast .text-slate-500  { color: #374151 !important; }
+    .access-high-contrast .border-slate-200,
+    .access-high-contrast .border-slate-300 { border-color: #6B7280 !important; }
+    .access-high-contrast [style*="box-shadow"] { box-shadow: none !important; }
+    .access-high-contrast .shadow-sm,
+    .access-high-contrast [class*="shadow-"] { box-shadow: 0 0 0 2px #374151 !important; }
 
-    /* ── Divider ──────────────────────────────────────────────── */
-    hr.rule { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+    .access-reduce-motion *,
+    .access-reduce-motion *::before,
+    .access-reduce-motion *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    /* Settings panel entrance */
+    .settings-panel-enter { animation: settings-in 150ms ease both; }
+    @keyframes settings-in {
+      from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)   scale(1);    }
+    }
+
+    /* Toggle switch */
+    .toggle-track {
+      width: 36px; height: 20px; border-radius: 10px;
+      position: relative; cursor: pointer;
+      transition: background 200ms ease;
+      flex-shrink: 0;
+    }
+    .toggle-track.on  { background: #F59E0B; }
+    .toggle-track.off { background: #CBD5E1; }
+    .toggle-thumb {
+      position: absolute; top: 3px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transition: left 200ms ease;
+    }
+    .toggle-track.on  .toggle-thumb { left: 19px; }
+    .toggle-track.off .toggle-thumb { left: 3px;  }
   </style>
 </head>
+
 <body
+  class="min-h-screen py-8"
+  :class="{
+    'access-large-text':    fontSize === 'large',
+    'access-small-text':    fontSize === 'small',
+    'access-high-contrast': highContrast,
+    'access-reduce-motion': reduceMotion
+  }"
   x-data="{
     step: 0,
+
+    /* --- Accessibility settings --- */
+    accessOpen: false,
+    fontSize: 'large',
+    highContrast: false,
+    reduceMotion: false,
+    darkMode: false,
+
+    init() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('a11y') || '{}');
+        if (saved.fontSize   !== undefined) this.fontSize    = saved.fontSize;
+        if (saved.highContrast !== undefined) this.highContrast = saved.highContrast;
+        if (saved.reduceMotion !== undefined) this.reduceMotion = saved.reduceMotion;
+        if (saved.darkMode   !== undefined) this.darkMode    = saved.darkMode;
+      } catch (_) {}
+    },
+
 
     /* --- File state --- */
     modelFile: null,
@@ -201,17 +239,34 @@
 
     /* --- Hyperparameters (mirror DEFAULT_HYPERPARAMS) --- */
     hyperparams: {
+      // Universal
+      model_type: 'lstm',
+      filter_type: 'enkf',
       lookback: 12,
+      n_ensemble: 50,
+      n_particles: 500,
+      obs_error_factor: 0.2,
+      train_fraction: 0.8,
+      min_overlap_days: 30,
+      // LSTM
       lstm_units: 64,
       dense_units: 64,
       learning_rate: 0.001,
       batch_size: 32,
       epochs: 200,
       patience: 15,
-      n_ensemble: 50,
-      obs_error_factor: 0.2,
-      train_fraction: 0.8,
-      min_overlap_days: 30
+      // XGBoost
+      n_estimators: 100,
+      max_depth: 6,
+      xgb_learning_rate: 0.1,
+      subsample: 0.8,
+      colsample_bytree: 0.8,
+      // Random Forest
+      max_depth_rf: null,
+      min_samples_leaf: 5,
+      max_features: 0.7,
+      // Ridge
+      alpha: 1.0
     },
     seed: 42,
 
@@ -221,181 +276,293 @@
     eventSource: null,
     resultMetrics: null,
     isRunning: false,
+    plotFiles: [],
 
-    /* --- Computed: all required fields filled --- */
+    /* --- Elapsed timer --- */
+    runStartTime: null,
+    elapsed: '0s',
+    _elapsedTimer: null,
+
+    /* --- Graphs lightbox & skeleton --- */
+    lightbox: null,
+    imageLoaded: {},
+
+    /* --- Graph label editing --- */
+    editingPlot: null,
+    plotLabels: {},
+    plotTimestamps: {},
+    applyingLabel: null,
+
+    /* --- Run history --- */
+    historyOpen: false,
+    history: [],
+    historyLoading: false,
+    viewingRunId: null,
+
     get canProceed() {
       return (
-        this.modelFile &&
-        this.obsFile &&
-        this.modelDateCol &&
-        this.modelValueCol &&
-        this.obsDateCol &&
-        this.obsValueCol &&
+        this.modelFile && this.obsFile &&
+        this.modelDateCol && this.modelValueCol &&
+        this.obsDateCol && this.obsValueCol &&
         this.stationName.trim() !== ''
       );
     },
 
-    /* ------------------------------------------------------------------ */
-    /* pickFile(type, event)                                                */
-    /* POST to /api/preview-csv, populate columns + preview, auto-select   */
-    /* ------------------------------------------------------------------ */
+    get pipelineSteps() {
+      const log = this.logLines.join('\n');
+      const allDone = this.step === 3 || this.step === 4;
+      const steps = [
+        { label: 'Load & Resample',    done: allDone || log.includes('  Model:') },
+        { label: 'Align Observations', done: allDone || log.includes('  Overlap:') },
+        { label: 'Standardize Data',   done: allDone || log.includes('  Sequences:') },
+        { label: 'Train ' + (this.hyperparams.model_type || 'lstm').toUpperCase(), done: allDone || log.includes('trained') },
+        { label: 'Estimate Q & R',     done: allDone || log.includes('  Q =') },
+        { label: this.hyperparams.filter_type === 'particle_filter' ? 'Run Particle Filter' : 'Run EnKF', done: allDone || log.includes('complete') },
+        { label: 'Open-Loop Baseline', done: allDone || log.includes('Open-loop complete') },
+        { label: 'Compute 95% CI',     done: allDone || log.includes('95% CI integral') },
+        { label: 'Export CSVs',        done: allDone || log.includes('Saved →') },
+        { label: 'Generate Plots',     done: allDone },
+      ];
+      const activeIdx = steps.findIndex(s => !s.done);
+      return steps.map((s, i) => ({ ...s, active: i === activeIdx }));
+    },
+
+    /* Pick the best-matching column from a list given keyword priorities.
+       Returns the first col whose name (lowercased) contains any keyword,
+       checked in priority order. Falls back to fallback (first col). */
+    _bestCol(cols, keywords, fallback) {
+      const lower = cols.map(c => c.toLowerCase());
+      for (const kw of keywords) {
+        const idx = lower.findIndex(c => c.includes(kw));
+        if (idx !== -1) return cols[idx];
+      }
+      return fallback || cols[0] || '';
+    },
+
     async pickFile(type, event) {
       const file = event.target.files[0];
       if (!file) return;
-
       if (type === 'model') {
         this.modelFile = file;
-        this.modelColumns = [];
-        this.modelNumericCols = [];
-        this.modelPreview = [];
-        this.modelDateCol = '';
-        this.modelValueCol = '';
+        this.modelColumns = []; this.modelNumericCols = [];
+        this.modelPreview = []; this.modelDateCol = ''; this.modelValueCol = '';
       } else {
         this.obsFile = file;
-        this.obsColumns = [];
-        this.obsNumericCols = [];
-        this.obsPreview = [];
-        this.obsDateCol = '';
-        this.obsValueCol = '';
+        this.obsColumns = []; this.obsNumericCols = [];
+        this.obsPreview = []; this.obsDateCol = ''; this.obsValueCol = '';
       }
-
       const fd = new FormData();
       fd.append('file', file);
-
       try {
         const resp = await fetch('/api/preview-csv', { method: 'POST', body: fd });
-        if (!resp.ok) throw new Error('Preview request failed');
+        if (!resp.ok) throw new Error('Preview failed');
         const data = await resp.json();
-
+        const dateKw  = ['date','time','datetime','timestamp','day','simdate','sampledate',
+                         'index','idx','step','record','t','period','year','month'];
+        const valueKw = ['value','flow','discharge','result','data','obs','tn','tp',
+                         'concentration','level','stage','streamflow','runoff','precip'];
         if (type === 'model') {
-          this.modelColumns = data.columns || [];
+          this.modelColumns     = data.columns         || [];
           this.modelNumericCols = data.numeric_columns || [];
-          this.modelPreview = data.preview || [];
-          this.modelDateCol = this.modelColumns[0] || '';
-          this.modelValueCol = this.modelNumericCols[0] || '';
+          this.modelPreview     = data.preview         || [];
+          this.modelDateCol  = this._bestCol(this.modelColumns, dateKw);
+          this.modelValueCol = this._bestCol(
+            this.modelNumericCols.length ? this.modelNumericCols : this.modelColumns,
+            valueKw
+          );
         } else {
-          this.obsColumns = data.columns || [];
+          this.obsColumns     = data.columns         || [];
           this.obsNumericCols = data.numeric_columns || [];
-          this.obsPreview = data.preview || [];
-          this.obsDateCol = this.obsColumns[0] || '';
-          this.obsValueCol = this.obsNumericCols[0] || '';
+          this.obsPreview     = data.preview         || [];
+          this.obsDateCol  = this._bestCol(this.obsColumns, dateKw);
+          this.obsValueCol = this._bestCol(
+            this.obsNumericCols.length ? this.obsNumericCols : this.obsColumns,
+            valueKw
+          );
         }
       } catch (err) {
         alert('Could not read CSV. Please check that the file is UTF-8 encoded and comma-separated.');
       }
     },
 
-    /* ------------------------------------------------------------------ */
-    /* startRun()                                                           */
-    /* POST /api/start-run with both files + all params, then open SSE     */
-    /* ------------------------------------------------------------------ */
     async startRun() {
       if (this.isRunning) return;
       this.isRunning = true;
-      this.logLines = [];
-      this.errorTrace = '';
-
+      this.logLines = []; this.errorTrace = '';
       const fd = new FormData();
-      fd.append('model_file', this.modelFile);
-      fd.append('obs_file', this.obsFile);
-      fd.append('model_date_col', this.modelDateCol);
+      fd.append('model_file',      this.modelFile);
+      fd.append('obs_file',        this.obsFile);
+      fd.append('model_date_col',  this.modelDateCol);
       fd.append('model_value_col', this.modelValueCol);
-      fd.append('obs_date_col', this.obsDateCol);
-      fd.append('obs_value_col', this.obsValueCol);
-      fd.append('station_name', this.stationName);
-      fd.append('hyperparams', JSON.stringify(this.hyperparams));
-      fd.append('seed', String(this.seed));
-
+      fd.append('obs_date_col',    this.obsDateCol);
+      fd.append('obs_value_col',   this.obsValueCol);
+      fd.append('station_name',    this.stationName);
+      fd.append('hyperparams',     JSON.stringify(this.hyperparams));
+      fd.append('seed',            String(this.seed));
       try {
         const resp = await fetch('/api/start-run', { method: 'POST', body: fd });
-        if (!resp.ok) {
-          const txt = await resp.text();
-          throw new Error(txt || 'Start run failed');
-        }
+        if (!resp.ok) { const txt = await resp.text(); throw new Error(txt || 'Start run failed'); }
       } catch (err) {
         this.errorTrace = err.message || String(err);
-        this.step = 'error';
-        this.isRunning = false;
-        return;
+        this.step = 'error'; this.isRunning = false; return;
       }
-
       this.step = 2;
+      this._startElapsedTimer();
       this.connectSSE();
     },
 
-    /* ------------------------------------------------------------------ */
-    /* connectSSE()                                                         */
-    /* Open /api/run-stream, handle log lines + named events               */
-    /* ------------------------------------------------------------------ */
     connectSSE() {
-      if (this.eventSource) {
-        this.eventSource.close();
-        this.eventSource = null;
-      }
-
+      if (this.eventSource) { this.eventSource.close(); this.eventSource = null; }
       const es = new EventSource('/api/run-stream');
       this.eventSource = es;
-
       es.onmessage = (e) => { this.logLines.push(e.data); };
-
       es.addEventListener('done', async () => {
-        es.close();
-        this.eventSource = null;
-        this.isRunning = false;
-
+        es.close(); this.eventSource = null; this.isRunning = false; this._stopElapsedTimer();
         try {
           const resp = await fetch('/api/result-summary');
-          if (resp.ok) {
-            const data = await resp.json();
-            this.resultMetrics = data.metrics || null;
-          }
-        } catch (_) { /* non-fatal */ }
-
+          if (resp.ok) { const data = await resp.json(); this.resultMetrics = data.metrics || null; }
+        } catch (_) {}
         this.step = 3;
       });
-
       es.addEventListener('error', (e) => {
-        es.close();
-        this.eventSource = null;
-        this.isRunning = false;
+        es.close(); this.eventSource = null; this.isRunning = false; this._stopElapsedTimer();
         this.errorTrace = (e.data || 'Unknown error').replace(/\\n/g, '\n');
         this.step = 'error';
       });
-
       es.addEventListener('cancelled', () => {
-        es.close();
-        this.eventSource = null;
-        this.isRunning = false;
-        this.step = 0;
-        /* Preserve files, columns, params per D-17/D-20 */
+        es.close(); this.eventSource = null; this.isRunning = false; this._stopElapsedTimer(); this.step = 0;
       });
-
       es.onerror = () => {
         if (es.readyState === EventSource.CLOSED) {
-          es.close();
-          this.eventSource = null;
+          es.close(); this.eventSource = null;
           if (this.isRunning) {
-            this.isRunning = false;
-            if (this.step === 2) {
-              this.errorTrace = 'Connection to server lost.';
-              this.step = 'error';
-            }
+            this.isRunning = false; this._stopElapsedTimer();
+            if (this.step === 2) { this.errorTrace = 'Connection to server lost.'; this.step = 'error'; }
           }
         }
       };
     },
 
-    /* ------------------------------------------------------------------ */
-    /* cancel()                                                             */
-    /* ------------------------------------------------------------------ */
     async cancel() {
       try { await fetch('/api/cancel', { method: 'POST' }); } catch (_) {}
       if (this.eventSource) { this.eventSource.close(); this.eventSource = null; }
     },
 
-    /* ------------------------------------------------------------------ */
-    /* previewHeaders(type)                                                 */
-    /* ------------------------------------------------------------------ */
+    async fetchPlots() {
+      try {
+        const resp = await fetch(this._apiBase() + '/plots');
+        if (resp.ok) { const data = await resp.json(); this.plotFiles = data.plots || []; }
+      } catch (_) {}
+    },
+
+    _plotTitle(filename) {
+      const name = filename.replace(/\.png$/i, '');
+      // Known patterns
+      const ciMatch = name.match(/^CI_Area_(.+)$/i);
+      if (ciMatch) return ciMatch[1].replace(/_/g, ' ') + ' — 95% Confidence Interval';
+      const mvMatch = name.match(/^Model_vs_Observed_(.+)$/i);
+      if (mvMatch) return mvMatch[1].replace(/_/g, ' ') + ' — Model vs Observed Scatter';
+      const compMatch = name.match(/^(.+)_Comparison$/i);
+      if (compMatch) return compMatch[1].replace(/_/g, ' ') + ' — Model vs Reanalysis vs Observations';
+      // Fallback: title-case with spaces
+      return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    },
+
+    _startElapsedTimer() {
+      this.runStartTime = Date.now();
+      this.elapsed = '0s';
+      this._elapsedTimer = setInterval(() => {
+        const secs = Math.floor((Date.now() - this.runStartTime) / 1000);
+        const m = Math.floor(secs / 60), s = secs % 60;
+        this.elapsed = m > 0 ? `${m}m ${s}s` : `${s}s`;
+      }, 1000);
+    },
+
+    _stopElapsedTimer() {
+      if (this._elapsedTimer) { clearInterval(this._elapsedTimer); this._elapsedTimer = null; }
+    },
+
+    _apiBase() { return this.viewingRunId ? `/api/history/${this.viewingRunId}` : '/api'; },
+
+    async fetchHistory() {
+      this.historyLoading = true;
+      try {
+        const r = await fetch('/api/history');
+        if (r.ok) { const d = await r.json(); this.history = d.runs || []; }
+      } catch (_) {}
+      this.historyLoading = false;
+    },
+
+    async viewHistoryRun(runId) {
+      this.viewingRunId = runId;
+      this.plotFiles = []; this.imageLoaded = {}; this.plotLabels = {}; this.plotTimestamps = {};
+      this.historyOpen = false;
+      try {
+        const r = await fetch(`/api/history/${runId}/plots`);
+        if (r.ok) { const d = await r.json(); this.plotFiles = d.plots || []; }
+      } catch (_) {}
+      this.step = 4;
+    },
+
+    async deleteHistoryRun(runId) {
+      if (!confirm('Delete this run and all its files permanently?')) return;
+      try { await fetch(`/api/history/${runId}`, { method: 'DELETE' }); } catch (_) {}
+      this.history = this.history.filter(r => r.run_id !== runId);
+    },
+
+    _defaultLabels(filename) {
+      const name = filename.replace(/\.png$/i, '');
+      const ciMatch   = name.match(/^CI_Area_(.+)$/i);
+      const mvMatch   = name.match(/^Model_vs_Observed_(.+)$/i);
+      const compMatch = name.match(/^(.+)_Comparison$/i);
+      if (ciMatch) {
+        const v = ciMatch[1].replace(/_/g, ' ');
+        return { title: `${v} — 95% Confidence Interval`, xlabel: 'Date', ylabel: v };
+      }
+      if (mvMatch) {
+        const v = mvMatch[1].replace(/_/g, ' ');
+        return { title: `Model Simulation vs Observed ${v}`, xlabel: 'Date', ylabel: v };
+      }
+      if (compMatch) {
+        const v = compMatch[1].replace(/_/g, ' ');
+        return { title: `${v}: Observed vs Open-Loop vs Reanalysis`, xlabel: 'Date', ylabel: v };
+      }
+      return { title: name.replace(/_/g, ' '), xlabel: 'Date', ylabel: 'Value' };
+    },
+
+    toggleEditPlot(filename) {
+      if (this.editingPlot === filename) { this.editingPlot = null; return; }
+      if (!this.plotLabels[filename]) {
+        this.plotLabels = { ...this.plotLabels, [filename]: this._defaultLabels(filename) };
+      }
+      this.editingPlot = filename;
+    },
+
+    async applyLabels(filename) {
+      const labels = this.plotLabels[filename];
+      if (!labels) return;
+      this.applyingLabel = filename;
+      try {
+        const resp = await fetch(this._apiBase() + '/render-plot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename, ...labels }),
+        });
+        if (resp.ok) {
+          // Bust the img cache so the browser reloads the updated PNG
+          this.plotTimestamps = { ...this.plotTimestamps, [filename]: Date.now() };
+          this.imageLoaded    = { ...this.imageLoaded,    [filename]: false };
+          this.editingPlot    = null;
+        } else {
+          alert('Re-render failed. Check the server console for details.');
+        }
+      } catch (_) {
+        alert('Network error while re-rendering.');
+      } finally {
+        this.applyingLabel = null;
+      }
+    },
+
     previewHeaders(type) {
       const rows = type === 'model' ? this.modelPreview : this.obsPreview;
       if (!rows || rows.length === 0) return [];
@@ -404,82 +571,159 @@
   }"
 >
 
-<!-- ================================================================ -->
-<!-- Page shell                                                         -->
-<!-- ================================================================ -->
-<div style="max-width:900px; margin:0 auto; padding:2.5rem 1.5rem 4rem;">
+<div
+  x-effect="
+    const map = { small: '13px', default: '16px', large: '19px' };
+    document.documentElement.style.fontSize = map[fontSize] ?? '16px';
+    document.documentElement.classList.toggle('dark', darkMode);
+    try { localStorage.setItem('a11y', JSON.stringify({ fontSize, highContrast, reduceMotion, darkMode })); } catch (_) {}
+  "
+  class="hidden"
+  aria-hidden="true"
+></div>
 
-  <!-- Header -->
-  <div style="margin-bottom:2.5rem; padding-bottom:1.5rem; border-bottom:1px solid var(--border);">
-    <h1 style="font-size:1.875rem; line-height:1.2; margin-bottom:0.35rem;">Reanalysis Dashboard</h1>
-    <p style="color:var(--text-secondary); font-size:0.9375rem; margin:0;">
-      LSTM + Ensemble Kalman Filter data assimilation — upload model and observation CSVs to produce a reanalysis with uncertainty bounds.
+<div class="max-w-4xl mx-auto px-4 sm:px-6">
+
+  <!-- ════════════════════════════════════════════════════ -->
+  <!-- Header                                               -->
+  <!-- ════════════════════════════════════════════════════ -->
+  <div class="mb-8">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="font-mono text-xs font-medium text-amber-500 tracking-[0.2em] uppercase mb-1">Reanalysis Tool</p>
+        <h1 class="text-3xl font-semibold text-slate-800 tracking-tight">Dashboard</h1>
+      </div>
+      <button
+        @click="fetchHistory(); historyOpen = true;"
+        class="flex items-center gap-1.5 border border-slate-200 text-slate-500 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150 cursor-pointer mt-1"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg>
+        Past Runs
+      </button>
+    </div>
+    <p class="text-slate-500 mt-1.5 text-sm leading-relaxed max-w-xl">
+      Upload model simulations and sparse observations. The pipeline fuses them with an LSTM
+      neural network + Ensemble Kalman Filter to produce a calibrated reanalysis with 95% CI.
     </p>
+
+    <!-- Pipeline strip -->
+    <div class="flex items-center flex-wrap gap-y-1 mt-4 font-mono text-xs text-slate-400">
+      <span class="flex items-center gap-1.5 whitespace-nowrap">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>CSV Files
+      </span>
+      <span class="mx-2 text-slate-300">→</span>
+      <span class="flex items-center gap-1.5 whitespace-nowrap">
+        <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>LSTM Forecast
+      </span>
+      <span class="mx-2 text-slate-300">→</span>
+      <span class="flex items-center gap-1.5 whitespace-nowrap">
+        <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>EnKF Analysis
+      </span>
+      <span class="mx-2 text-slate-300">→</span>
+      <span class="flex items-center gap-1.5 whitespace-nowrap">
+        <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>Reanalysis + 95% CI
+      </span>
+    </div>
   </div>
 
-  <!-- Step breadcrumb — clickable when the target step is reachable -->
-  <nav class="step-nav" x-show="step !== 'error'">
-    <span class="sn"
-      :class="{ active: step === 0, done: step > 0, 'sn-link': !isRunning }"
-      @click="!isRunning && (step = 0)"
-    >01 · Upload</span>
-    <span class="sn"
-      :class="{ active: step === 1, done: step > 1, 'sn-link': !isRunning && canProceed }"
-      @click="!isRunning && canProceed && (step = 1)"
-    >02 · Configure</span>
-    <span class="sn"
-      :class="{ active: step === 2 }"
-    >03 · Running</span>
-    <span class="sn"
-      :class="{ active: step === 3, 'sn-link': !isRunning && resultMetrics != null }"
-      @click="!isRunning && resultMetrics != null && (step = 3)"
-    >04 · Results</span>
-  </nav>
+  <!-- ════════════════════════════════════════════════════ -->
+  <!-- Step indicator                                        -->
+  <!-- ════════════════════════════════════════════════════ -->
+  <div class="flex items-end mb-8" x-show="step !== 'error'">
+    <template x-for="(label, idx) in ['Upload', 'Configure', 'Running', 'Results', 'Graphs']" :key="idx">
+      <div class="flex items-end">
+        <div class="relative pb-2 px-1 cursor-default select-none">
+          <div class="flex items-center gap-1.5">
+            <span
+              class="font-mono text-xs font-medium transition-colors duration-200"
+              :class="{
+                'text-amber-500': step === idx,
+                'text-slate-300': typeof step === 'number' && step < idx,
+                'text-blue-500':  typeof step === 'number' && step > idx
+              }"
+              x-text="'0' + (idx + 1)"
+            ></span>
+            <span
+              class="text-sm font-medium transition-colors duration-200 hidden sm:block"
+              :class="{
+                'text-slate-800': step === idx,
+                'text-slate-400': typeof step === 'number' && step < idx,
+                'text-blue-600':  typeof step === 'number' && step > idx
+              }"
+              x-text="label"
+            ></span>
+          </div>
+          <!-- Active underline -->
+          <div
+            class="absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-300"
+            :class="step === idx ? 'bg-amber-500' : 'bg-transparent'"
+          ></div>
+        </div>
+        <!-- Connector -->
+        <div class="h-px w-6 sm:w-14 bg-slate-200 mb-2 mx-0.5 flex-shrink-0" x-show="idx < 4"></div>
+      </div>
+    </template>
+  </div>
 
-
-  <!-- ============================================================== -->
-  <!-- STEP 0: Upload                                                  -->
-  <!-- ============================================================== -->
+  <!-- ════════════════════════════════════════════════════ -->
+  <!-- STEP 0 · Upload                                       -->
+  <!-- ════════════════════════════════════════════════════ -->
   <div x-show="step === 0" x-cloak>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
 
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+      <!-- ── Model CSV ── -->
+      <div class="bg-white border border-slate-300 rounded-xl p-5 shadow-[0_2px_20px_rgba(15,23,42,0.10)]">
+        <div class="mb-4">
+          <p class="font-mono text-xs font-medium text-amber-500 uppercase tracking-wider mb-0.5">Input A</p>
+          <h2 class="text-base font-semibold text-slate-800">Model CSV</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Time index column + numeric simulation column.</p>
+        </div>
 
-      <!-- Model CSV -->
-      <div class="panel" style="padding:1.5rem;">
-        <p class="label-caps" style="margin-bottom:0.75rem;">Model CSV</p>
-        <p style="font-size:0.875rem; color:var(--text-secondary); margin:0 0 1rem;">
-          Simulation output — any date column + numeric value column.
-        </p>
-
-        <label style="display:block; cursor:pointer;">
-          <div class="upload-zone" :class="{ 'has-file': modelFile }">
-            <input type="file" accept=".csv" style="display:none;" @change="pickFile('model', $event)">
-            <span x-show="!modelFile">Select CSV file</span>
-            <span x-show="modelFile" style="font-weight:500;" x-text="modelFile?.name"></span>
+        <label class="block cursor-pointer group mb-4">
+          <div
+            class="border-2 border-dashed rounded-lg p-5 text-center transition-all duration-200"
+            :class="modelFile ? 'border-amber-300 bg-amber-50' : 'border-slate-200 hover:border-amber-300 hover:bg-slate-50'"
+          >
+            <input type="file" accept=".csv" class="hidden" @change="pickFile('model', $event)">
+            <div x-show="!modelFile" class="flex flex-col items-center gap-1.5">
+              <svg class="w-8 h-8 text-slate-300 group-hover:text-amber-400 transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.338-2.32 5.75 5.75 0 0 1 1.522 11.095" />
+              </svg>
+              <p class="text-sm text-slate-400">Click to browse</p>
+              <span class="font-mono text-xs text-slate-300">.csv</span>
+            </div>
+            <div x-show="modelFile" class="flex items-center justify-center gap-2">
+              <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+              </svg>
+              <span class="font-mono text-xs font-medium text-slate-700 truncate max-w-[180px]" x-text="modelFile?.name"></span>
+            </div>
           </div>
         </label>
 
-        <!-- Column count badge -->
-        <div x-show="modelColumns.length > 0" style="margin-top:0.625rem;">
-          <span class="badge badge-ok" x-text="modelColumns.length + ' columns detected'"></span>
+        <div x-show="modelColumns.length > 0" class="flex items-center gap-2 mb-3">
+          <span class="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
+            <span x-text="modelColumns.length"></span> cols
+          </span>
+          <span class="text-xs text-green-600 font-medium">Loaded</span>
         </div>
 
-        <!-- Preview table -->
-        <div x-show="modelPreview.length > 0" style="margin-top:1rem; overflow-x:auto;">
-          <p class="label-caps" style="margin-bottom:0.5rem;">Preview — first 5 rows</p>
-          <table class="dt">
+        <div x-show="modelPreview.length > 0" class="mb-4 overflow-x-auto rounded-lg border border-slate-100">
+          <table class="w-full text-xs border-collapse">
             <thead>
-              <tr>
+              <tr class="bg-slate-50">
                 <template x-for="col in previewHeaders('model')" :key="col">
-                  <th x-text="col"></th>
+                  <th class="px-2.5 py-1.5 text-left font-mono font-medium text-slate-500 border-b border-slate-100 whitespace-nowrap" x-text="col"></th>
                 </template>
               </tr>
             </thead>
             <tbody>
               <template x-for="(row, i) in modelPreview" :key="i">
-                <tr>
+                <tr :class="i % 2 === 0 ? 'bg-white' : 'bg-slate-50'">
                   <template x-for="col in previewHeaders('model')" :key="col">
-                    <td class="num" x-text="row[col] ?? ''"></td>
+                    <td class="px-2.5 py-1.5 font-mono text-slate-600 border-b border-slate-50 whitespace-nowrap" x-text="row[col] ?? '—'"></td>
                   </template>
                 </tr>
               </template>
@@ -487,64 +731,78 @@
           </table>
         </div>
 
-        <!-- Column selectors -->
-        <div x-show="modelColumns.length > 0" style="margin-top:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+        <div x-show="modelColumns.length > 0" class="space-y-3">
           <div>
-            <label class="field-label">Date column</label>
-            <select x-model="modelDateCol">
-              <template x-for="col in modelColumns" :key="col">
-                <option :value="col" x-text="col"></option>
-              </template>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Time / index column</label>
+            <select x-model="modelDateCol" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+              <template x-for="col in modelColumns" :key="col"><option :value="col" x-text="col"></option></template>
             </select>
           </div>
           <div>
-            <label class="field-label">Value column <span style="font-weight:400;">(variable to reanalyse)</span></label>
-            <select x-model="modelValueCol">
-              <template x-for="col in modelNumericCols" :key="col">
-                <option :value="col" x-text="col"></option>
-              </template>
+            <label class="block text-xs font-medium text-slate-500 mb-1">
+              Value column <span class="text-slate-400 font-normal">(variable to reanalyse)</span>
+            </label>
+            <select x-model="modelValueCol" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+              <template x-for="col in modelNumericCols" :key="col"><option :value="col" x-text="col"></option></template>
             </select>
-            <p x-show="modelNumericCols.length === 0 && modelColumns.length > 0" class="hint" style="color:#d97706;">
+            <p x-show="modelNumericCols.length === 0 && modelColumns.length > 0" class="text-xs text-amber-600 mt-1">
               No numeric columns detected — verify selection carefully.
             </p>
           </div>
         </div>
       </div>
 
-      <!-- Observation CSV -->
-      <div class="panel" style="padding:1.5rem;">
-        <p class="label-caps" style="margin-bottom:0.75rem;">Observation CSV</p>
-        <p style="font-size:0.875rem; color:var(--text-secondary); margin:0 0 1rem;">
-          Field measurements — any date column + numeric observation column.
-        </p>
+      <!-- ── Observation CSV ── -->
+      <div class="bg-white border border-slate-300 rounded-xl p-5 shadow-[0_2px_20px_rgba(15,23,42,0.10)]">
+        <div class="mb-4">
+          <p class="font-mono text-xs font-medium text-blue-500 uppercase tracking-wider mb-0.5">Input B</p>
+          <h2 class="text-base font-semibold text-slate-800">Observation CSV</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Time index column + numeric observation column.</p>
+        </div>
 
-        <label style="display:block; cursor:pointer;">
-          <div class="upload-zone" :class="{ 'has-file': obsFile }">
-            <input type="file" accept=".csv" style="display:none;" @change="pickFile('obs', $event)">
-            <span x-show="!obsFile">Select CSV file</span>
-            <span x-show="obsFile" style="font-weight:500;" x-text="obsFile?.name"></span>
+        <label class="block cursor-pointer group mb-4">
+          <div
+            class="border-2 border-dashed rounded-lg p-5 text-center transition-all duration-200"
+            :class="obsFile ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'"
+          >
+            <input type="file" accept=".csv" class="hidden" @change="pickFile('obs', $event)">
+            <div x-show="!obsFile" class="flex flex-col items-center gap-1.5">
+              <svg class="w-8 h-8 text-slate-300 group-hover:text-blue-400 transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.338-2.32 5.75 5.75 0 0 1 1.522 11.095" />
+              </svg>
+              <p class="text-sm text-slate-400">Click to browse</p>
+              <span class="font-mono text-xs text-slate-300">.csv</span>
+            </div>
+            <div x-show="obsFile" class="flex items-center justify-center gap-2">
+              <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+              </svg>
+              <span class="font-mono text-xs font-medium text-slate-700 truncate max-w-[180px]" x-text="obsFile?.name"></span>
+            </div>
           </div>
         </label>
 
-        <div x-show="obsColumns.length > 0" style="margin-top:0.625rem;">
-          <span class="badge badge-ok" x-text="obsColumns.length + ' columns detected'"></span>
+        <div x-show="obsColumns.length > 0" class="flex items-center gap-2 mb-3">
+          <span class="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
+            <span x-text="obsColumns.length"></span> cols
+          </span>
+          <span class="text-xs text-green-600 font-medium">Loaded</span>
         </div>
 
-        <div x-show="obsPreview.length > 0" style="margin-top:1rem; overflow-x:auto;">
-          <p class="label-caps" style="margin-bottom:0.5rem;">Preview — first 5 rows</p>
-          <table class="dt">
+        <div x-show="obsPreview.length > 0" class="mb-4 overflow-x-auto rounded-lg border border-slate-100">
+          <table class="w-full text-xs border-collapse">
             <thead>
-              <tr>
+              <tr class="bg-slate-50">
                 <template x-for="col in previewHeaders('obs')" :key="col">
-                  <th x-text="col"></th>
+                  <th class="px-2.5 py-1.5 text-left font-mono font-medium text-slate-500 border-b border-slate-100 whitespace-nowrap" x-text="col"></th>
                 </template>
               </tr>
             </thead>
             <tbody>
               <template x-for="(row, i) in obsPreview" :key="i">
-                <tr>
+                <tr :class="i % 2 === 0 ? 'bg-white' : 'bg-slate-50'">
                   <template x-for="col in previewHeaders('obs')" :key="col">
-                    <td class="num" x-text="row[col] ?? ''"></td>
+                    <td class="px-2.5 py-1.5 font-mono text-slate-600 border-b border-slate-50 whitespace-nowrap" x-text="row[col] ?? '—'"></td>
                   </template>
                 </tr>
               </template>
@@ -552,391 +810,1158 @@
           </table>
         </div>
 
-        <div x-show="obsColumns.length > 0" style="margin-top:1rem; display:flex; flex-direction:column; gap:0.75rem;">
+        <div x-show="obsColumns.length > 0" class="space-y-3">
           <div>
-            <label class="field-label">Date column</label>
-            <select x-model="obsDateCol">
-              <template x-for="col in obsColumns" :key="col">
-                <option :value="col" x-text="col"></option>
-              </template>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Time / index column</label>
+            <select x-model="obsDateCol" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+              <template x-for="col in obsColumns" :key="col"><option :value="col" x-text="col"></option></template>
             </select>
           </div>
           <div>
-            <label class="field-label">Value column <span style="font-weight:400;">(variable to assimilate)</span></label>
-            <select x-model="obsValueCol">
-              <template x-for="col in obsNumericCols" :key="col">
-                <option :value="col" x-text="col"></option>
-              </template>
+            <label class="block text-xs font-medium text-slate-500 mb-1">
+              Value column <span class="text-slate-400 font-normal">(variable to reanalyse)</span>
+            </label>
+            <select x-model="obsValueCol" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+              <template x-for="col in obsNumericCols" :key="col"><option :value="col" x-text="col"></option></template>
             </select>
-            <p x-show="obsNumericCols.length === 0 && obsColumns.length > 0" class="hint" style="color:#d97706;">
+            <p x-show="obsNumericCols.length === 0 && obsColumns.length > 0" class="text-xs text-amber-600 mt-1">
               No numeric columns detected — verify selection carefully.
             </p>
           </div>
         </div>
       </div>
-
-    </div><!-- /grid -->
-
-    <!-- Dataset name + proceed -->
-    <div class="panel" style="padding:1.5rem;">
-      <div style="margin-bottom:1.25rem; max-width:320px;">
-        <label class="field-label">Run label</label>
-        <input type="text" x-model="stationName" placeholder="MyDataset">
-        <p class="hint">Used as a prefix in output filenames and plots.</p>
-      </div>
-      <div style="display:flex; align-items:center; gap:1rem;">
-        <button class="btn btn-primary" @click="step = 1" :disabled="!canProceed">
-          Continue to Configuration →
-        </button>
-        <p x-show="!canProceed" style="font-size:0.8125rem; color:var(--text-secondary); margin:0;">
-          Upload both CSVs and select columns to continue.
-        </p>
-      </div>
     </div>
 
+    <!-- Dataset name + Next -->
+    <div class="bg-white border border-slate-300 rounded-xl p-5 shadow-[0_2px_20px_rgba(15,23,42,0.10)]">
+      <div class="flex flex-col sm:flex-row sm:items-end gap-4">
+        <div class="flex-1">
+          <label class="block text-xs font-medium text-slate-500 mb-1">Run / dataset name</label>
+          <input
+            type="text"
+            x-model="stationName"
+            class="border border-slate-200 rounded-lg px-3 py-2 w-full sm:w-72 text-sm text-slate-700"
+            placeholder="MyDataset"
+          >
+          <p class="text-xs text-slate-400 mt-1">Used as a label in output filenames and plots.</p>
+        </div>
+        <div class="flex flex-col items-start gap-1.5">
+          <button
+            @click="step = 1"
+            :disabled="!canProceed"
+            class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white px-5 py-2 rounded-lg font-semibold text-sm transition-colors duration-150 cursor-pointer"
+          >
+            Next: Configure
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+            </svg>
+          </button>
+          <p x-show="!canProceed" class="text-xs text-slate-400">
+            Upload both CSVs and select columns to continue.
+          </p>
+        </div>
+      </div>
+    </div>
   </div><!-- /step 0 -->
 
-
-  <!-- ============================================================== -->
-  <!-- STEP 1: Hyperparameters                                         -->
-  <!-- ============================================================== -->
+  <!-- ════════════════════════════════════════════════════ -->
+  <!-- STEP 1 · Configure                                    -->
+  <!-- ════════════════════════════════════════════════════ -->
   <div x-show="step === 1" x-cloak>
-    <div class="panel" style="padding:1.75rem;">
+    <div class="bg-white border border-slate-300 rounded-xl shadow-[0_2px_20px_rgba(15,23,42,0.10)] overflow-hidden">
 
-      <p class="label-caps" style="margin-bottom:0.3rem;">Model configuration</p>
-      <p style="font-size:0.875rem; color:var(--text-secondary); margin:0 0 1.75rem;">
-        Defaults are calibrated for daily environmental time-series. Adjust only if you have domain-specific reasons.
-      </p>
+      <div class="px-6 py-4 border-b border-slate-100">
+        <h2 class="text-lg font-semibold text-slate-800">Model Configuration</h2>
+        <p class="text-xs text-slate-400 mt-0.5">Defaults are calibrated for daily hydrological time-series. Adjust only if you have domain-specific knowledge.</p>
+      </div>
 
-      <!-- LSTM Architecture -->
-      <p class="label-caps" style="margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">LSTM architecture &amp; training</p>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem 2rem; margin-bottom:1.75rem;">
+      <div class="p-6 space-y-8">
 
+        <!-- Section: Forecast Model Selector -->
         <div>
-          <label class="field-label">
-            Lookback window — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.lookback + ' steps'"></span>
-          </label>
-          <input type="range" min="5" max="60" step="1" x-model.number="hyperparams.lookback">
-          <p class="hint">Past time steps used as LSTM input sequence.</p>
+          <div class="flex items-center gap-2 mb-5">
+            <div class="w-0.5 h-4 bg-amber-400 rounded-full"></div>
+            <h3 class="font-mono text-xs font-semibold text-slate-500 uppercase tracking-wider">Forecast Model</h3>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+
+            <div>
+              <label class="block font-mono text-xs font-medium text-slate-600 mb-2">model_type</label>
+              <select x-model="hyperparams.model_type" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+                <option value="lstm">LSTM (Neural Network)</option>
+                <option value="xgboost">XGBoost (Gradient Boosted Trees)</option>
+                <option value="random_forest">Random Forest (Ensemble Trees)</option>
+                <option value="ridge">Ridge Regression (Linear Baseline)</option>
+              </select>
+              <p class="text-xs text-slate-400 mt-1">Forecast model used inside the filter. LSTM is default; Ridge is fastest.</p>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">lookback</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.lookback"></span>
+              </div>
+              <input type="range" min="5" max="60" step="1" x-model.number="hyperparams.lookback">
+              <p class="text-xs text-slate-400 mt-1">Days of history the model sees per prediction (sequence window).</p>
+            </div>
+
+          </div>
         </div>
 
-        <div>
-          <label class="field-label">LSTM hidden units</label>
-          <select x-model.number="hyperparams.lstm_units">
-            <option :value="32">32</option>
-            <option :value="64">64 (default)</option>
-            <option :value="128">128</option>
-            <option :value="256">256</option>
-          </select>
+        <!-- Section: LSTM params (shown only when model_type === 'lstm') -->
+        <div x-show="hyperparams.model_type === 'lstm'" x-cloak>
+          <div class="flex items-center gap-2 mb-5">
+            <div class="w-0.5 h-4 bg-amber-400 rounded-full"></div>
+            <h3 class="font-mono text-xs font-semibold text-slate-500 uppercase tracking-wider">LSTM Architecture &amp; Training</h3>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+
+            <div>
+              <label class="block font-mono text-xs font-medium text-slate-600 mb-2">lstm_units</label>
+              <select x-model.number="hyperparams.lstm_units" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+                <option :value="32">32</option>
+                <option :value="64">64</option>
+                <option :value="128">128</option>
+                <option :value="256">256</option>
+              </select>
+              <p class="text-xs text-slate-400 mt-1">Hidden units in the LSTM layer — larger = more capacity, slower training.</p>
+            </div>
+
+            <div>
+              <label class="block font-mono text-xs font-medium text-slate-600 mb-2">dense_units</label>
+              <select x-model.number="hyperparams.dense_units" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+                <option :value="32">32</option>
+                <option :value="64">64</option>
+                <option :value="128">128</option>
+              </select>
+              <p class="text-xs text-slate-400 mt-1">Units in the dense layer following the LSTM.</p>
+            </div>
+
+            <div>
+              <label class="block font-mono text-xs font-medium text-slate-600 mb-2">learning_rate</label>
+              <select x-model.number="hyperparams.learning_rate" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+                <option :value="0.0001">0.0001</option>
+                <option :value="0.0005">0.0005</option>
+                <option :value="0.001">0.001 · default</option>
+                <option :value="0.005">0.005</option>
+                <option :value="0.01">0.01</option>
+              </select>
+              <p class="text-xs text-slate-400 mt-1">Adam optimizer step size — lower is more stable but slower to converge.</p>
+            </div>
+
+            <div>
+              <label class="block font-mono text-xs font-medium text-slate-600 mb-2">batch_size</label>
+              <select x-model.number="hyperparams.batch_size" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+                <option :value="16">16</option>
+                <option :value="32">32</option>
+                <option :value="64">64</option>
+              </select>
+              <p class="text-xs text-slate-400 mt-1">Samples per gradient update — larger batches train faster but may generalize less.</p>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">epochs</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.epochs"></span>
+              </div>
+              <input type="range" min="50" max="500" step="10" x-model.number="hyperparams.epochs">
+              <p class="text-xs text-slate-400 mt-1">Maximum training iterations — early stopping will halt before this if val loss plateaus.</p>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">patience</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.patience"></span>
+              </div>
+              <input type="range" min="5" max="50" step="1" x-model.number="hyperparams.patience">
+              <p class="text-xs text-slate-400 mt-1">Early stop if val loss stagnates.</p>
+            </div>
+
+          </div>
         </div>
 
-        <div>
-          <label class="field-label">Dense hidden units</label>
-          <select x-model.number="hyperparams.dense_units">
-            <option :value="32">32</option>
-            <option :value="64">64 (default)</option>
-            <option :value="128">128</option>
-          </select>
+        <!-- Section: XGBoost params -->
+        <div x-show="hyperparams.model_type === 'xgboost'" x-cloak>
+          <div class="flex items-center gap-2 mb-5">
+            <div class="w-0.5 h-4 bg-amber-400 rounded-full"></div>
+            <h3 class="font-mono text-xs font-semibold text-slate-500 uppercase tracking-wider">XGBoost Parameters</h3>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">n_estimators</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.n_estimators"></span>
+              </div>
+              <input type="range" min="50" max="500" step="50" x-model.number="hyperparams.n_estimators">
+              <p class="text-xs text-slate-400 mt-1">Number of boosting rounds — more trees = higher accuracy, slower training.</p>
+            </div>
+
+            <div>
+              <label class="block font-mono text-xs font-medium text-slate-600 mb-2">max_depth</label>
+              <select x-model.number="hyperparams.max_depth" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+                <option :value="3">3 (shallow)</option>
+                <option :value="4">4</option>
+                <option :value="6">6 · default</option>
+                <option :value="8">8</option>
+                <option :value="10">10 (deep)</option>
+              </select>
+              <p class="text-xs text-slate-400 mt-1">Maximum tree depth — deeper trees capture more complex patterns but may overfit.</p>
+            </div>
+
+            <div>
+              <label class="block font-mono text-xs font-medium text-slate-600 mb-2">xgb_learning_rate</label>
+              <select x-model.number="hyperparams.xgb_learning_rate" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+                <option :value="0.01">0.01 (slow)</option>
+                <option :value="0.05">0.05</option>
+                <option :value="0.1">0.1 · default</option>
+                <option :value="0.2">0.2</option>
+                <option :value="0.3">0.3 (fast)</option>
+              </select>
+              <p class="text-xs text-slate-400 mt-1">Step shrinkage — lower values are more conservative and often generalize better.</p>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">subsample</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.subsample.toFixed(2)"></span>
+              </div>
+              <input type="range" min="0.5" max="1.0" step="0.05" x-model.number="hyperparams.subsample">
+              <p class="text-xs text-slate-400 mt-1">Fraction of training rows sampled per tree — lower reduces overfitting.</p>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">colsample_bytree</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.colsample_bytree.toFixed(2)"></span>
+              </div>
+              <input type="range" min="0.5" max="1.0" step="0.05" x-model.number="hyperparams.colsample_bytree">
+              <p class="text-xs text-slate-400 mt-1">Fraction of features (lookback days) used per tree.</p>
+            </div>
+
+          </div>
         </div>
 
-        <div>
-          <label class="field-label">Learning rate</label>
-          <select x-model.number="hyperparams.learning_rate">
-            <option :value="0.0001">0.0001</option>
-            <option :value="0.0005">0.0005</option>
-            <option :value="0.001">0.001 (default)</option>
-            <option :value="0.005">0.005</option>
-            <option :value="0.01">0.01</option>
-          </select>
+        <!-- Section: Random Forest params -->
+        <div x-show="hyperparams.model_type === 'random_forest'" x-cloak>
+          <div class="flex items-center gap-2 mb-5">
+            <div class="w-0.5 h-4 bg-amber-400 rounded-full"></div>
+            <h3 class="font-mono text-xs font-semibold text-slate-500 uppercase tracking-wider">Random Forest Parameters</h3>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">n_estimators</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.n_estimators"></span>
+              </div>
+              <input type="range" min="50" max="500" step="50" x-model.number="hyperparams.n_estimators">
+              <p class="text-xs text-slate-400 mt-1">Number of trees — more trees improve stability at the cost of runtime.</p>
+            </div>
+
+            <div>
+              <label class="block font-mono text-xs font-medium text-slate-600 mb-2">max_depth_rf</label>
+              <select x-model="hyperparams.max_depth_rf" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+                <option :value="null">None (unlimited) · default</option>
+                <option :value="5">5</option>
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+                <option :value="30">30</option>
+              </select>
+              <p class="text-xs text-slate-400 mt-1">Maximum tree depth — unlimited grows fully, which can overfit noisy data.</p>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">min_samples_leaf</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.min_samples_leaf"></span>
+              </div>
+              <input type="range" min="1" max="20" step="1" x-model.number="hyperparams.min_samples_leaf">
+              <p class="text-xs text-slate-400 mt-1">Minimum samples required at each leaf — higher values smooth predictions.</p>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">max_features</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.max_features.toFixed(2)"></span>
+              </div>
+              <input type="range" min="0.3" max="1.0" step="0.05" x-model.number="hyperparams.max_features">
+              <p class="text-xs text-slate-400 mt-1">Fraction of features considered at each split — lower increases diversity between trees.</p>
+            </div>
+
+          </div>
         </div>
 
-        <div>
-          <label class="field-label">Batch size</label>
-          <select x-model.number="hyperparams.batch_size">
-            <option :value="16">16</option>
-            <option :value="32">32 (default)</option>
-            <option :value="64">64</option>
-          </select>
+        <!-- Section: Ridge params -->
+        <div x-show="hyperparams.model_type === 'ridge'" x-cloak>
+          <div class="flex items-center gap-2 mb-5">
+            <div class="w-0.5 h-4 bg-amber-400 rounded-full"></div>
+            <h3 class="font-mono text-xs font-semibold text-slate-500 uppercase tracking-wider">Ridge Regression Parameters</h3>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+
+            <div>
+              <label class="block font-mono text-xs font-medium text-slate-600 mb-2">alpha</label>
+              <select x-model.number="hyperparams.alpha" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+                <option :value="0.01">0.01 (weak regularization)</option>
+                <option :value="0.1">0.1</option>
+                <option :value="1.0">1.0 · default</option>
+                <option :value="10">10</option>
+                <option :value="100">100 (strong regularization)</option>
+              </select>
+              <p class="text-xs text-slate-400 mt-1">L2 regularization strength — higher values shrink coefficients more aggressively.</p>
+            </div>
+
+          </div>
         </div>
 
+        <!-- Section: Data Assimilation Filter -->
         <div>
-          <label class="field-label">
-            Max epochs — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.epochs"></span>
-          </label>
-          <input type="range" min="50" max="500" step="10" x-model.number="hyperparams.epochs">
+          <div class="flex items-center gap-2 mb-5">
+            <div class="w-0.5 h-4 bg-blue-400 rounded-full"></div>
+            <h3 class="font-mono text-xs font-semibold text-slate-500 uppercase tracking-wider">Data Assimilation Filter</h3>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+
+            <!-- Filter selector (always visible) -->
+            <div>
+              <label class="block font-mono text-xs font-medium text-slate-600 mb-2">filter_type</label>
+              <select x-model="hyperparams.filter_type" class="border border-slate-200 rounded-lg px-3 py-2 w-full text-sm bg-white text-slate-700 cursor-pointer">
+                <option value="enkf">EnKF (Ensemble Kalman Filter)</option>
+                <option value="particle_filter">Particle Filter (SIR)</option>
+              </select>
+              <p class="text-xs text-slate-400 mt-1">EnKF is faster; Particle Filter handles non-Gaussian errors and threshold dynamics.</p>
+            </div>
+
+            <!-- obs_error_factor (always visible) -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">obs_error_factor</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.obs_error_factor.toFixed(2)"></span>
+              </div>
+              <input type="range" min="0.05" max="1.0" step="0.05" x-model.number="hyperparams.obs_error_factor">
+              <p class="text-xs text-slate-400 mt-1">R = factor × Var(obs). Higher → trust model more.</p>
+            </div>
+
+            <!-- n_ensemble — EnKF only -->
+            <div x-show="hyperparams.filter_type === 'enkf'" x-cloak>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">n_ensemble</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.n_ensemble"></span>
+              </div>
+              <input type="range" min="10" max="200" step="5" x-model.number="hyperparams.n_ensemble">
+              <p class="text-xs text-slate-400 mt-1">More members → better CI, slower runtime.</p>
+            </div>
+
+            <!-- n_particles — Particle Filter only -->
+            <div x-show="hyperparams.filter_type === 'particle_filter'" x-cloak>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">n_particles</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.n_particles"></span>
+              </div>
+              <input type="range" min="100" max="2000" step="100" x-model.number="hyperparams.n_particles">
+              <p class="text-xs text-slate-400 mt-1">500+ recommended — PF needs more particles than EnKF to represent non-Gaussian posteriors.</p>
+            </div>
+
+            <!-- train_fraction (always visible) -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">train_fraction</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.train_fraction.toFixed(2)"></span>
+              </div>
+              <input type="range" min="0.5" max="0.9" step="0.05" x-model.number="hyperparams.train_fraction">
+              <p class="text-xs text-slate-400 mt-1">Fraction of timesteps used for training vs validation split.</p>
+            </div>
+
+            <!-- min_overlap_days (always visible) -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="font-mono text-xs font-medium text-slate-600">min_overlap_days</label>
+                <span class="font-mono text-sm font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-200" x-text="hyperparams.min_overlap_days"></span>
+              </div>
+              <input type="range" min="10" max="100" step="1" x-model.number="hyperparams.min_overlap_days">
+              <p class="text-xs text-slate-400 mt-1">Minimum model–observation overlap required.</p>
+            </div>
+
+          </div>
         </div>
 
+        <!-- Section: Reproducibility -->
         <div>
-          <label class="field-label">
-            Early stopping patience — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.patience + ' epochs'"></span>
-          </label>
-          <input type="range" min="5" max="50" step="1" x-model.number="hyperparams.patience">
-          <p class="hint">Training stops when validation loss stalls for this many epochs.</p>
+          <div class="flex items-center gap-2 mb-4">
+            <div class="w-0.5 h-4 bg-slate-300 rounded-full"></div>
+            <h3 class="font-mono text-xs font-semibold text-slate-500 uppercase tracking-wider">Reproducibility</h3>
+          </div>
+          <div class="flex items-center gap-3">
+            <div>
+              <label class="block font-mono text-xs font-medium text-slate-600 mb-1.5">seed</label>
+              <input
+                type="number" min="0"
+                x-model.number="seed"
+                class="border border-slate-200 rounded-lg px-3 py-2 w-28 font-mono text-sm text-slate-700"
+              >
+            </div>
+            <p class="text-xs text-slate-400 mt-5">Random seed for reproducible LSTM training and ensemble initialization.</p>
+          </div>
         </div>
 
       </div>
 
-      <!-- EnKF -->
-      <p class="label-caps" style="margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">Ensemble Kalman Filter</p>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem 2rem; margin-bottom:1.75rem;">
-
-        <div>
-          <label class="field-label">
-            Ensemble members — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.n_ensemble"></span>
-          </label>
-          <input type="range" min="10" max="200" step="5" x-model.number="hyperparams.n_ensemble">
-          <p class="hint">More members improve uncertainty estimates but increase runtime.</p>
-        </div>
-
-        <div>
-          <label class="field-label">
-            Observation error factor R — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.obs_error_factor.toFixed(2)"></span>
-          </label>
-          <input type="range" min="0.05" max="1.0" step="0.05" x-model.number="hyperparams.obs_error_factor">
-          <p class="hint">R = factor × Var(obs). Higher values down-weight observations.</p>
-        </div>
-
-        <div>
-          <label class="field-label">
-            Training fraction — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.train_fraction.toFixed(2)"></span>
-          </label>
-          <input type="range" min="0.5" max="0.9" step="0.05" x-model.number="hyperparams.train_fraction">
-        </div>
-
-        <div>
-          <label class="field-label">
-            Minimum overlap — <span style="font-family:'JetBrains Mono',monospace; color:var(--accent);" x-text="hyperparams.min_overlap_days + ' steps'"></span>
-          </label>
-          <input type="range" min="10" max="100" step="1" x-model.number="hyperparams.min_overlap_days">
-          <p class="hint">Required co-coverage between model output and observations.</p>
-        </div>
-
-      </div>
-
-      <!-- Seed -->
-      <p class="label-caps" style="margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">Reproducibility</p>
-      <div style="margin-bottom:1.75rem; max-width:180px;">
-        <label class="field-label">Random seed</label>
-        <input type="number" min="0" x-model.number="seed">
-        <p class="hint">Fixes NumPy and TensorFlow random state.</p>
-      </div>
-
-      <!-- Navigation -->
-      <div style="display:flex; gap:0.875rem; align-items:center; padding-top:1.25rem; border-top:1px solid var(--border);">
-        <button class="btn btn-ghost" @click="step = 0">← Back</button>
-        <button class="btn btn-primary" @click="startRun()" :disabled="isRunning">
+      <!-- Card footer -->
+      <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <button
+          @click="step = 0"
+          class="flex items-center gap-2 border border-slate-200 text-slate-600 hover:bg-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150 cursor-pointer"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+          </svg>
+          Back
+        </button>
+        <button
+          @click="startRun()"
+          :disabled="isRunning"
+          class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-semibold text-sm transition-colors duration-150 cursor-pointer"
+        >
+          <svg x-show="!isRunning" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+          </svg>
+          <svg x-show="isRunning" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
           <span x-show="!isRunning">Run Reanalysis</span>
           <span x-show="isRunning">Starting…</span>
         </button>
       </div>
-
     </div>
   </div><!-- /step 1 -->
 
-
-  <!-- ============================================================== -->
-  <!-- STEP 2: Running                                                 -->
-  <!-- ============================================================== -->
+  <!-- ════════════════════════════════════════════════════ -->
+  <!-- STEP 2 · Running                                      -->
+  <!-- ════════════════════════════════════════════════════ -->
   <div x-show="step === 2" x-cloak>
-    <div class="panel" style="padding:1.75rem;">
+    <div class="bg-white border border-slate-300 rounded-xl shadow-[0_2px_20px_rgba(15,23,42,0.10)] overflow-hidden">
 
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
-        <div style="display:flex; align-items:center; gap:0.75rem;">
-          <!-- Minimal pulse indicator -->
-          <span style="position:relative; display:inline-flex; width:10px; height:10px;">
-            <span style="position:absolute; inset:0; border-radius:50%; background:var(--accent); opacity:0.4; animation:ping 1.4s cubic-bezier(0,0,0.2,1) infinite;"></span>
-            <span style="position:relative; width:10px; height:10px; border-radius:50%; background:var(--accent); display:inline-block;"></span>
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="relative inline-flex w-2.5 h-2.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-60"></span>
+            <span class="relative inline-flex rounded-full w-2.5 h-2.5 bg-amber-500"></span>
           </span>
-          <span style="font-weight:600;">Pipeline running</span>
+          <div>
+            <h2 class="text-base font-semibold text-slate-800">Pipeline Running</h2>
+            <p class="text-xs text-slate-400">LSTM training · EnKF analysis in progress</p>
+          </div>
         </div>
-        <button class="btn btn-stop" @click="cancel()">Stop</button>
+        <span class="font-mono text-xs text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 dark-elapsed" x-text="elapsed"></span>
       </div>
 
-      <p style="font-size:0.875rem; color:var(--text-secondary); margin:0 0 1rem;">
-        LSTM training and EnKF execution in progress. Runtime depends on dataset size and available hardware.
+      <!-- Pipeline step progress -->
+      <div class="px-6 pt-2 pb-4 border-b border-slate-100">
+        <p class="font-mono text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Steps</p>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-y-2 gap-x-3">
+          <template x-for="(s, i) in pipelineSteps" :key="i">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <!-- Done -->
+              <template x-if="s.done">
+                <svg class="w-3.5 h-3.5 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+              </template>
+              <!-- Active (pulsing) -->
+              <template x-if="!s.done && s.active">
+                <span class="relative flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center">
+                  <span class="animate-ping absolute w-2.5 h-2.5 rounded-full bg-amber-400 opacity-60"></span>
+                  <span class="relative w-2 h-2 rounded-full bg-amber-500"></span>
+                </span>
+              </template>
+              <!-- Pending -->
+              <template x-if="!s.done && !s.active">
+                <span class="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0">
+                  <span class="w-2 h-2 rounded-full border border-slate-300"></span>
+                </span>
+              </template>
+              <!-- Label -->
+              <span
+                class="text-xs truncate transition-colors duration-200"
+                :class="s.done ? 'text-slate-400' : s.active ? 'text-slate-700 font-semibold' : 'text-slate-300'"
+                x-text="s.label"
+              ></span>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Terminal window -->
+      <div class="mx-6 my-5 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+        <div class="bg-slate-800 px-4 py-2.5 flex items-center gap-3">
+          <span class="w-3 h-3 rounded-full bg-red-400 opacity-80"></span>
+          <span class="w-3 h-3 rounded-full bg-amber-400 opacity-80"></span>
+          <span class="w-3 h-3 rounded-full bg-green-400 opacity-80"></span>
+          <span class="ml-2 font-mono text-xs text-slate-400">pipeline.log</span>
+          <span class="ml-auto font-mono text-xs text-slate-500">
+            <span x-text="logLines.length"></span> lines
+          </span>
+        </div>
+        <pre
+          x-text="logLines.slice(-30).join('\n')"
+          x-ref="logPanel"
+          class="bg-[#0D1117] text-emerald-400 p-4 overflow-y-auto max-h-96 text-xs leading-relaxed whitespace-pre-wrap"
+          style="font-family: 'Fira Code', monospace;"
+        >Initializing TensorFlow and loading data…</pre>
+        <div x-init="$watch('logLines', () => { $nextTick(() => { $refs.logPanel && ($refs.logPanel.scrollTop = $refs.logPanel.scrollHeight) }) })"></div>
+      </div>
+
+      <p class="text-xs text-slate-400 px-6 pb-5">
+        Runtime depends on dataset size and hardware — typically 1–10 minutes on CPU.
       </p>
-
-      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.5rem;">
-        <span class="label-caps">Pipeline output</span>
-        <span style="font-size:0.75rem; color:var(--text-secondary); font-family:'JetBrains Mono',monospace;" x-text="logLines.length + ' lines'"></span>
-      </div>
-
-      <pre
-        class="log-terminal"
-        x-text="logLines.slice(-40).join('\n')"
-        x-ref="logPanel"
-      >Initializing…</pre>
-
-      <div x-init="$watch('logLines', () => { $nextTick(() => { $refs.logPanel && ($refs.logPanel.scrollTop = $refs.logPanel.scrollHeight) }) })"></div>
     </div>
   </div><!-- /step 2 -->
 
-  <style>
-    @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
-  </style>
-
-
-  <!-- ============================================================== -->
-  <!-- STEP 3: Results                                                 -->
-  <!-- ============================================================== -->
+  <!-- ════════════════════════════════════════════════════ -->
+  <!-- STEP 3 · Results                                      -->
+  <!-- ════════════════════════════════════════════════════ -->
   <div x-show="step === 3" x-cloak>
+    <div class="bg-white border border-slate-300 rounded-xl shadow-[0_2px_20px_rgba(15,23,42,0.10)] overflow-hidden">
 
-    <!-- Title -->
-    <div style="margin-bottom:1.5rem;">
-      <h1 style="font-size:1.5rem; margin-bottom:0.25rem;" x-text="'Results — ' + stationName"></h1>
-      <p style="font-size:0.875rem; color:var(--text-secondary); margin:0;">
-        LSTM + EnKF reanalysis complete. 95% confidence interval derived from
-        <span x-text="hyperparams.n_ensemble"></span>-member ensemble.
-      </p>
-    </div>
+      <div class="px-6 py-5 border-b border-slate-100 flex items-start gap-4">
+        <div class="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-base font-semibold text-slate-800">Reanalysis complete</h2>
+          <p class="text-xs text-slate-400 mt-0.5">
+            <span class="font-medium text-slate-600" x-text="stationName"></span>
+            <span x-show="modelValueCol"> · Variable: <span class="font-medium text-slate-600" x-text="modelValueCol"></span></span>
+            <span x-show="resultMetrics?.T"> · <span x-text="resultMetrics?.T?.toLocaleString()"></span> daily timesteps</span>
+          </p>
+        </div>
+      </div>
 
-    <!-- ── Metrics summary row ─────────────────────────────────── -->
-    <div x-show="resultMetrics" style="margin-bottom:1.5rem;">
-      <p class="label-caps" style="margin-bottom:0.625rem;">Summary</p>
-      <div class="metrics-row">
-        <div class="metric-cell">
-          <div class="m-label">Time Steps</div>
-          <div class="m-value" x-text="resultMetrics?.T?.toLocaleString() ?? '—'"></div>
-        </div>
-        <div class="metric-cell">
-          <div class="m-label">Observations</div>
-          <div class="m-value" x-text="resultMetrics?.obs_count?.toLocaleString() ?? '—'"></div>
-        </div>
-        <div class="metric-cell">
-          <div class="m-label">Obs Density</div>
-          <div class="m-value">
-            <span x-show="resultMetrics?.is_sparse" class="badge badge-warn" style="font-size:0.8125rem;">Sparse</span>
-            <span x-show="!resultMetrics?.is_sparse" class="badge badge-ok" style="font-size:0.8125rem;">Dense</span>
+      <!-- Metrics -->
+      <div x-show="resultMetrics" class="p-6">
+        <p class="font-mono text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Summary Metrics</p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+
+          <div class="border border-slate-200 rounded-lg p-3" style="border-top: 2px solid #F59E0B;" title="Total number of daily timesteps in the reanalysis period">
+            <p class="font-mono text-xs text-slate-400 mb-1">Duration</p>
+            <p class="text-xl font-bold font-mono text-slate-800" x-text="resultMetrics?.T?.toLocaleString() ?? '—'"></p>
+            <p class="text-xs text-slate-400 mt-0.5">time steps</p>
           </div>
-        </div>
-        <div class="metric-cell">
-          <div class="m-label">Best Val Loss</div>
-          <div class="m-value" x-text="resultMetrics?.best_val_loss != null ? Number(resultMetrics.best_val_loss).toExponential(2) : '—'"></div>
-        </div>
-        <div class="metric-cell">
-          <div class="m-label">Stopped Epoch</div>
-          <div class="m-value" x-text="resultMetrics?.stopped_epoch ?? '—'"></div>
+
+          <div class="border border-slate-200 rounded-lg p-3" style="border-top: 2px solid #F59E0B;" title="Number of observation points assimilated by the EnKF">
+            <p class="font-mono text-xs text-slate-400 mb-1">Observations</p>
+            <p class="text-xl font-bold font-mono text-slate-800" x-text="resultMetrics?.obs_count?.toLocaleString() ?? '—'"></p>
+            <p class="text-xs text-slate-400 mt-0.5">assimilated</p>
+          </div>
+
+          <div class="border border-slate-200 rounded-lg p-3" style="border-top: 2px solid #F59E0B;" title="Sparse: <50% daily coverage. The EnKF skips days without observations.">
+            <p class="font-mono text-xs text-slate-400 mb-1">Obs Density</p>
+            <p class="text-xl font-bold font-mono"
+               :class="resultMetrics?.is_sparse ? 'text-amber-600' : 'text-green-600'"
+               x-text="resultMetrics?.is_sparse ? 'Sparse' : 'Dense'"></p>
+            <p class="text-xs text-slate-400 mt-0.5">data regime</p>
+          </div>
+
+          <div class="border border-slate-200 rounded-lg p-3" style="border-top: 2px solid #3B82F6;" title="Best LSTM validation loss (mean squared error on standardized data)">
+            <p class="font-mono text-xs text-slate-400 mb-1">Val Loss</p>
+            <p class="text-xl font-bold font-mono text-slate-800" x-text="resultMetrics?.best_val_loss != null ? Number(resultMetrics.best_val_loss).toFixed(5) : '—'"></p>
+            <p class="text-xs text-slate-400 mt-0.5">MSE (normalized)</p>
+          </div>
+
+          <div class="border border-slate-200 rounded-lg p-3" style="border-top: 2px solid #3B82F6;" title="Epoch at which early stopping was triggered (patience window exhausted)">
+            <p class="font-mono text-xs text-slate-400 mb-1">Epochs Trained</p>
+            <p class="text-xl font-bold font-mono text-slate-800" x-text="resultMetrics?.stopped_epoch ?? '—'"></p>
+            <p class="text-xs text-slate-400 mt-0.5">early stop</p>
+          </div>
+
+          <div class="border border-slate-200 rounded-lg p-3" style="border-top: 2px solid #22C55E;" title="Mean width of the 95% confidence interval across the full reanalysis (physical units)">
+            <p class="font-mono text-xs text-slate-400 mb-1">CI Width</p>
+            <p class="text-xl font-bold font-mono text-slate-800" x-text="resultMetrics?.ci_mean_width != null ? Number(resultMetrics.ci_mean_width).toFixed(4) : '—'"></p>
+            <p class="text-xs text-slate-400 mt-0.5">mean 95% interval</p>
+          </div>
+
         </div>
       </div>
-    </div>
 
-    <!-- ── Per-metric results table ────────────────────────────── -->
-    <div x-show="resultMetrics" style="margin-bottom:1.5rem;">
-      <p class="label-caps" style="margin-bottom:0.625rem;">Run metrics</p>
-      <div class="panel" style="overflow:hidden;">
-        <table class="dt">
-          <thead>
-            <tr>
-              <th>Metric</th>
-              <th>Value</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Time steps (T)</td>
-              <td class="num" x-text="resultMetrics?.T?.toLocaleString() ?? '—'"></td>
-              <td style="color:var(--text-secondary);">Total daily records in reanalysis period</td>
-            </tr>
-            <tr>
-              <td>Observation count</td>
-              <td class="num" x-text="resultMetrics?.obs_count?.toLocaleString() ?? '—'"></td>
-              <td style="color:var(--text-secondary);">Non-null observation rows assimilated</td>
-            </tr>
-            <tr>
-              <td>Sparse regime</td>
-              <td x-text="resultMetrics?.is_sparse ? 'Yes' : 'No'"></td>
-              <td style="color:var(--text-secondary);">Obs density &lt; 50% of model timesteps</td>
-            </tr>
-            <tr>
-              <td>Best validation loss</td>
-              <td class="num" x-text="resultMetrics?.best_val_loss != null ? Number(resultMetrics.best_val_loss).toFixed(6) : '—'"></td>
-              <td style="color:var(--text-secondary);">MSE on held-out validation split</td>
-            </tr>
-            <tr>
-              <td>Stopped epoch</td>
-              <td class="num" x-text="resultMetrics?.stopped_epoch ?? '—'"></td>
-              <td style="color:var(--text-secondary);">Early stopping triggered at this epoch</td>
-            </tr>
-            <tr>
-              <td>CI mean width</td>
-              <td class="num" x-text="resultMetrics?.ci_mean_width != null ? Number(resultMetrics.ci_mean_width).toFixed(4) : '—'"></td>
-              <td style="color:var(--text-secondary);">Average width of 95% CI (physical units)</td>
-            </tr>
-          </tbody>
-        </table>
+      <div x-show="!resultMetrics" class="m-6 p-4 bg-slate-50 rounded-lg text-sm text-slate-500 border border-slate-100">
+        No summary metrics available.
+      </div>
+
+      <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center gap-3">
+        <a
+          :href="_apiBase() + '/download-csv'"
+          download
+          class="flex items-center gap-2 border border-slate-300 text-slate-600 hover:bg-white px-5 py-2 rounded-lg font-semibold text-sm transition-colors duration-150 cursor-pointer"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+          Download CSVs
+        </a>
+        <button
+          @click="viewingRunId = null; fetchPlots(); step = 4;"
+          class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold text-sm transition-colors duration-150 cursor-pointer"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+          </svg>
+          View Graphs
+        </button>
+        <button
+          @click="step = 0; logLines = []; resultMetrics = null; plotFiles = []; viewingRunId = null;"
+          class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-lg font-semibold text-sm transition-colors duration-150 cursor-pointer"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+          Run Another Analysis
+        </button>
       </div>
     </div>
-
-    <!-- ── Confidence interval section ─────────────────────────── -->
-    <div x-show="resultMetrics && resultMetrics.ci_mean_width != null" style="margin-bottom:1.5rem;">
-      <p class="label-caps" style="margin-bottom:0.625rem;">Confidence interval distribution</p>
-      <div class="panel" style="padding:1.25rem 1.5rem;">
-
-        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.75rem;">
-          <span style="font-size:0.875rem; color:var(--text-secondary);">Mean 95% CI width</span>
-          <span style="font-family:'JetBrains Mono',monospace; font-size:1rem; font-weight:500;" x-text="resultMetrics?.ci_mean_width != null ? Number(resultMetrics.ci_mean_width).toFixed(4) : ''"></span>
-        </div>
-
-        <!-- Normalised width bar: capped at a reference of 2× mean → bar fills to 50% at mean -->
-        <div class="ci-bar-track">
-          <div class="ci-bar-fill" :style="'width:' + Math.min(100, (resultMetrics?.ci_mean_width / (resultMetrics?.ci_mean_width * 2)) * 100) + '%'"></div>
-        </div>
-
-        <p style="font-size:0.8125rem; color:var(--text-secondary); margin:0.875rem 0 0;">
-          Derived from the 2.5th and 97.5th percentiles of the
-          <span x-text="hyperparams.n_ensemble"></span>-member EnKF ensemble at each time step.
-          Narrower intervals indicate higher model confidence; wider intervals reflect greater structural uncertainty or sparse observation coverage.
-        </p>
-      </div>
-    </div>
-
-    <!-- No metrics fallback -->
-    <div x-show="!resultMetrics" style="margin-bottom:1.5rem;" class="panel">
-      <div style="padding:1.25rem; font-size:0.875rem; color:var(--text-secondary);">
-        No summary metrics returned. Output files have been written to the server's temporary directory.
-      </div>
-    </div>
-
-    <!-- Action -->
-    <button
-      class="btn btn-ghost"
-      @click="step = 0; logLines = []; resultMetrics = null;"
-    >
-      ← Run another analysis
-    </button>
-
   </div><!-- /step 3 -->
 
+  <!-- ════════════════════════════════════════════════════ -->
+  <!-- STEP 4 · Graphs                                       -->
+  <!-- ════════════════════════════════════════════════════ -->
+  <div x-show="step === 4" x-cloak>
+    <div class="bg-white border border-slate-300 rounded-xl shadow-[0_2px_20px_rgba(15,23,42,0.10)] overflow-hidden">
 
-  <!-- ============================================================== -->
-  <!-- ERROR STATE                                                     -->
-  <!-- ============================================================== -->
-  <div x-show="step === 'error'" x-cloak>
-    <div class="panel" style="padding:1.75rem; border-left:3px solid #dc2626;">
+      <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-start gap-4">
+          <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-base font-semibold text-slate-800">Output Graphs</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Generated plots from the reanalysis run</p>
+          </div>
+        </div>
+        <span class="font-mono text-xs text-slate-400" x-text="plotFiles.length + ' plot' + (plotFiles.length !== 1 ? 's' : '')"></span>
+      </div>
 
-      <p class="label-caps" style="color:#dc2626; margin-bottom:0.5rem;">Pipeline error</p>
-      <p style="font-weight:500; margin:0 0 0.5rem;">The pipeline encountered an error and could not complete.</p>
-      <p style="font-size:0.875rem; color:var(--text-secondary); margin:0 0 1.25rem;">
-        Common causes: incompatible column data types, insufficient date overlap between model and observations, or an out-of-memory condition during training.
-      </p>
+      <!-- Plot grid -->
+      <div class="p-6">
+        <template x-if="plotFiles.length === 0">
+          <div class="py-12 text-center text-slate-400 text-sm">No plots found for this run.</div>
+        </template>
+        <template x-if="plotFiles.length > 0">
+          <div class="space-y-8">
+            <template x-for="filename in plotFiles" :key="filename">
+              <div class="border border-slate-200 rounded-xl overflow-hidden">
 
-      <!-- Collapsible traceback -->
-      <details style="margin-bottom:1.5rem;">
-        <summary style="cursor:pointer; font-size:0.875rem; font-weight:500; color:var(--text-secondary); user-select:none; list-style:none; display:flex; align-items:center; gap:0.4rem;">
-          <span>▶</span> Show technical details
-        </summary>
-        <pre
-          x-text="errorTrace"
-          style="margin-top:0.875rem; background:#111; color:#f87171; font-family:'JetBrains Mono',monospace; font-size:0.75rem; padding:1rem; border-radius:3px; overflow-x:auto; white-space:pre-wrap; max-height:18rem; overflow-y:auto; border:1px solid #2a2a2a;"
-        ></pre>
-      </details>
+                <!-- Card header: title + edit + download -->
+                <div class="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3">
+                  <p class="text-sm font-medium text-slate-700 truncate" x-text="_plotTitle(filename)"></p>
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                    <!-- Edit labels button -->
+                    <button
+                      @click="toggleEditPlot(filename)"
+                      :class="editingPlot === filename ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-slate-400 hover:text-slate-600 border-slate-200'"
+                      class="flex items-center gap-1 text-xs border px-2 py-1 rounded-md transition-colors duration-150 cursor-pointer"
+                      title="Edit labels"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                      </svg>
+                      Edit
+                    </button>
+                    <!-- Download button -->
+                    <a
+                      :href="_apiBase() + '/plot/' + filename + (plotTimestamps[filename] ? '?t=' + plotTimestamps[filename] : '')"
+                      :download="filename"
+                      class="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-600 border border-slate-200 px-2 py-1 rounded-md transition-colors duration-150 cursor-pointer"
+                      title="Download this plot"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                      PNG
+                    </a>
+                  </div>
+                </div>
 
-      <button class="btn btn-ghost" @click="step = 0">← Return to upload</button>
+                <!-- Edit labels panel -->
+                <div
+                  x-show="editingPlot === filename"
+                  x-cloak
+                  class="px-4 py-4 bg-amber-50 border-b border-amber-100"
+                >
+                  <p class="font-mono text-xs font-medium text-amber-600 uppercase tracking-wider mb-3">Customize Labels</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                    <div>
+                      <label class="block text-xs font-medium text-slate-600 mb-1">Plot Title</label>
+                      <input
+                        type="text"
+                        x-model="plotLabels[filename] && plotLabels[filename].title"
+                        @input="plotLabels = {...plotLabels, [filename]: {...(plotLabels[filename]||{}), title: $event.target.value}}"
+                        class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-amber-300"
+                        placeholder="Plot title"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-medium text-slate-600 mb-1">X-Axis Label</label>
+                      <input
+                        type="text"
+                        x-model="plotLabels[filename] && plotLabels[filename].xlabel"
+                        @input="plotLabels = {...plotLabels, [filename]: {...(plotLabels[filename]||{}), xlabel: $event.target.value}}"
+                        class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-amber-300"
+                        placeholder="X-axis label"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-medium text-slate-600 mb-1">Y-Axis Label</label>
+                      <input
+                        type="text"
+                        x-model="plotLabels[filename] && plotLabels[filename].ylabel"
+                        @input="plotLabels = {...plotLabels, [filename]: {...(plotLabels[filename]||{}), ylabel: $event.target.value}}"
+                        class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-amber-300"
+                        placeholder="Y-axis label"
+                      />
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button
+                      @click="applyLabels(filename)"
+                      :disabled="applyingLabel === filename"
+                      class="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors duration-150 cursor-pointer"
+                    >
+                      <svg x-show="applyingLabel !== filename" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                      </svg>
+                      <svg x-show="applyingLabel === filename" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                      </svg>
+                      <span x-text="applyingLabel === filename ? 'Applying…' : 'Apply'"></span>
+                    </button>
+                    <button
+                      @click="plotLabels = {...plotLabels, [filename]: _defaultLabels(filename)}"
+                      class="text-xs text-slate-400 hover:text-slate-600 transition-colors duration-150 cursor-pointer"
+                    >Reset to defaults</button>
+                  </div>
+                </div>
+
+                <!-- Image: skeleton + click to lightbox -->
+                <div class="p-4 bg-white flex items-center justify-center min-h-[180px]">
+                  <div
+                    x-show="!imageLoaded[filename]"
+                    class="w-full rounded-lg bg-slate-100 animate-pulse"
+                    style="height: 260px;"
+                  ></div>
+                  <img
+                    :src="_apiBase() + '/plot/' + filename + (plotTimestamps[filename] ? '?t=' + plotTimestamps[filename] : '')"
+                    :alt="_plotTitle(filename)"
+                    @load="imageLoaded = {...imageLoaded, [filename]: true}"
+                    @error="imageLoaded = {...imageLoaded, [filename]: true}"
+                    @click="lightbox = _apiBase() + '/plot/' + filename + (plotTimestamps[filename] ? '?t=' + plotTimestamps[filename] : '')"
+                    :class="imageLoaded[filename] ? 'cursor-zoom-in' : 'hidden'"
+                    class="max-w-full rounded-lg transition-opacity duration-300"
+                    style="max-height: 500px; object-fit: contain;"
+                  />
+                </div>
+
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+
+      <!-- Lightbox overlay -->
+      <div
+        x-show="lightbox"
+        x-cloak
+        @click="lightbox = null"
+        @keydown.escape.window="lightbox = null"
+        class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-6"
+        style="backdrop-filter: blur(4px);"
+      >
+        <img
+          :src="lightbox || ''"
+          @click.stop
+          class="max-w-full max-h-full rounded-lg shadow-2xl"
+          style="object-fit: contain;"
+        />
+        <button
+          @click="lightbox = null"
+          class="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors cursor-pointer"
+          aria-label="Close"
+        >
+          <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center gap-3">
+        <button
+          @click="step = 3"
+          class="flex items-center gap-2 border border-slate-300 text-slate-600 hover:bg-slate-100 px-5 py-2 rounded-lg font-semibold text-sm transition-colors duration-150 cursor-pointer"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+          </svg>
+          Back to Results
+        </button>
+        <button
+          @click="step = 0; logLines = []; resultMetrics = null; plotFiles = []; viewingRunId = null;"
+          class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-lg font-semibold text-sm transition-colors duration-150 cursor-pointer"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+          Run Another Analysis
+        </button>
+      </div>
+
     </div>
-  </div><!-- /error state -->
+  </div><!-- /step 4 -->
 
-</div><!-- /page shell -->
+  <!-- ════════════════════════════════════════════════════ -->
+  <!-- Error state                                           -->
+  <!-- ════════════════════════════════════════════════════ -->
+  <div x-show="step === 'error'" x-cloak>
+    <div class="bg-white rounded-xl overflow-hidden" style="border: 1px solid #CBD5E1; border-left: 4px solid #EF4444; box-shadow: 0 2px 20px rgba(15,23,42,0.10);">
+
+      <div class="px-6 py-5 flex items-start gap-4">
+        <div class="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-base font-semibold text-slate-800">Pipeline error</h2>
+          <p class="text-sm text-slate-500 mt-1 max-w-lg">
+            Common causes: incompatible column types, insufficient model–observation overlap
+            (&lt;&nbsp;<span x-text="hyperparams.min_overlap_days"></span>&nbsp;days), or an out-of-memory condition.
+          </p>
+        </div>
+      </div>
+
+      <div class="mx-6 mb-5">
+        <details class="group">
+          <summary class="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-700 select-none flex items-center gap-1.5 list-none">
+            <svg class="chevron w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+            </svg>
+            Show technical details
+          </summary>
+          <pre
+            x-text="errorTrace"
+            class="mt-3 bg-[#0D1117] text-red-400 p-4 rounded-xl text-xs overflow-x-auto whitespace-pre-wrap max-h-72 overflow-y-auto"
+            style="font-family: 'Fira Code', monospace;"
+          ></pre>
+        </details>
+      </div>
+
+      <div class="px-6 py-4 bg-slate-50 border-t border-slate-100">
+        <button
+          @click="step = 0"
+          class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-lg font-semibold text-sm transition-colors duration-150 cursor-pointer"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+          </svg>
+          Start Over
+        </button>
+      </div>
+    </div>
+  </div><!-- /error -->
+
+</div><!-- /container -->
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- Accessibility Settings (fixed, top-right)            -->
+<!-- ════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════════════ -->
+<!-- History modal                                        -->
+<!-- ════════════════════════════════════════════════════ -->
+<div
+  x-show="historyOpen"
+  x-cloak
+  @keydown.escape.window="historyOpen = false"
+  class="fixed inset-0 z-40 flex items-start justify-center pt-16 px-4"
+  style="background: rgba(15,23,42,0.55); backdrop-filter: blur(3px);"
+  @click.self="historyOpen = false"
+>
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+    <!-- Modal header -->
+    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <h2 class="text-base font-semibold text-slate-800">Past Runs</h2>
+        <p class="text-xs text-slate-400 mt-0.5">Click a run to view its graphs and outputs</p>
+      </div>
+      <button @click="historyOpen = false" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 cursor-pointer transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <!-- Loading -->
+    <div x-show="historyLoading" class="p-8 text-center text-slate-400 text-sm">Loading…</div>
+    <!-- Empty -->
+    <div x-show="!historyLoading && history.length === 0" class="p-8 text-center text-slate-400 text-sm">No completed runs saved yet. Finish a run to see it here.</div>
+    <!-- Run list -->
+    <div x-show="!historyLoading && history.length > 0" class="divide-y divide-slate-100 max-h-[60vh] overflow-y-auto">
+      <template x-for="run in history" :key="run.run_id">
+        <div x-data="{ hpOpen: false, editing: false, editName: '', saving: false }" class="px-6 py-4 hover:bg-slate-50 transition-colors">
+          <div class="flex items-start gap-4">
+            <div class="flex-1 min-w-0">
+              <!-- Title row -->
+              <div class="flex items-center gap-1.5 group/title">
+                <template x-if="!editing">
+                  <p class="text-sm font-semibold text-slate-800 truncate" x-text="run.station_name"></p>
+                </template>
+                <template x-if="editing">
+                  <input
+                    type="text"
+                    x-model="editName"
+                    @keydown.enter="saving=true; fetch(`/api/history/${run.run_id}/rename`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({station_name:editName})}).then(r=>r.json()).then(d=>{ if(d.ok){ run.station_name=d.station_name; } editing=false; saving=false; }).catch(()=>{ editing=false; saving=false; })"
+                    @keydown.escape="editing=false"
+                    class="text-sm font-semibold text-slate-800 border-b border-amber-400 bg-transparent outline-none w-full min-w-0"
+                    x-ref="editInput"
+                  />
+                </template>
+                <button
+                  x-show="!editing"
+                  @click="editName=run.station_name; editing=true; $nextTick(()=>$refs.editInput && $refs.editInput.focus())"
+                  class="opacity-0 group-hover/title:opacity-100 transition-opacity text-slate-300 hover:text-amber-500 cursor-pointer flex-shrink-0"
+                  title="Rename"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Z"/></svg>
+                </button>
+                <template x-if="editing">
+                  <div class="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      :disabled="saving"
+                      @click="saving=true; fetch(`/api/history/${run.run_id}/rename`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({station_name:editName})}).then(r=>r.json()).then(d=>{ if(d.ok){ run.station_name=d.station_name; } editing=false; saving=false; }).catch(()=>{ editing=false; saving=false; })"
+                      class="text-xs text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50 px-2 py-0.5 rounded cursor-pointer"
+                    >Save</button>
+                    <button @click="editing=false" class="text-xs text-slate-400 hover:text-slate-600 cursor-pointer">Cancel</button>
+                  </div>
+                </template>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">
+                <span x-text="run.variable"></span>
+                · <span x-text="run.metrics?.T ? run.metrics.T.toLocaleString() + ' days' : ''"></span>
+                · <span x-text="new Date(run.timestamp).toLocaleString()"></span>
+              </p>
+              <!-- Dataset files -->
+              <div class="flex flex-col gap-0.5 mt-1.5">
+                <p x-show="run.model_filename" class="text-xs text-slate-500 truncate">
+                  <span class="font-medium text-slate-400">Model:</span>
+                  <span class="font-mono" x-text="run.model_filename"></span>
+                </p>
+                <p x-show="run.obs_filename" class="text-xs text-slate-500 truncate">
+                  <span class="font-medium text-slate-400">Obs:</span>
+                  <span class="font-mono" x-text="run.obs_filename"></span>
+                </p>
+              </div>
+              <!-- Model + Filter badges -->
+              <div class="flex flex-wrap gap-1.5 mt-2">
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold font-mono bg-amber-50 text-amber-700 border border-amber-200"
+                  x-text="(run.hyperparams?.model_type || run.metrics?.model_type || 'lstm').toUpperCase()"
+                ></span>
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold font-mono bg-blue-50 text-blue-700 border border-blue-200"
+                  x-text="(run.hyperparams?.filter_type || 'enkf').toUpperCase()"
+                ></span>
+              </div>
+              <!-- Metrics row -->
+              <div x-show="run.metrics?.best_val_loss != null" class="flex gap-3 mt-1.5">
+                <span class="font-mono text-xs text-blue-500" x-text="'Val Loss: ' + Number(run.metrics?.best_val_loss).toFixed(5)"></span>
+                <span class="font-mono text-xs text-green-600" x-text="run.metrics?.ci_mean_width != null ? 'CI Width: ' + Number(run.metrics.ci_mean_width).toFixed(4) : ''"></span>
+              </div>
+              <!-- Time to Generate -->
+              <div x-show="run.elapsed_seconds != null" class="mt-1">
+                <span class="font-mono text-xs text-slate-400">Time to Generate: </span>
+                <span class="font-mono text-xs font-semibold text-amber-600" x-text="run.elapsed_seconds != null ? (Math.floor(run.elapsed_seconds / 60) > 0 ? Math.floor(run.elapsed_seconds / 60) + 'm ' + (run.elapsed_seconds % 60) + 's' : run.elapsed_seconds + 's') : ''"></span>
+              </div>
+              <!-- Hyperparameters toggle -->
+              <div x-show="run.hyperparams && Object.keys(run.hyperparams).length > 0" class="mt-1.5">
+                <button
+                  @click="hpOpen = !hpOpen"
+                  class="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <svg class="w-3 h-3 transition-transform duration-150" :class="hpOpen ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+                  Hyperparameters
+                  <span x-show="run.seed != null" class="text-slate-300">· seed <span x-text="run.seed"></span></span>
+                </button>
+                <div x-show="hpOpen" x-collapse class="mt-1.5 grid grid-cols-3 gap-x-4 gap-y-1 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+                  <template x-for="[k, v] in Object.entries(run.hyperparams || {})" :key="k">
+                    <div class="flex items-baseline gap-1 min-w-0">
+                      <span class="font-mono text-[10px] text-slate-400 truncate" x-text="k"></span>
+                      <span class="font-mono text-[10px] font-semibold text-slate-700 flex-shrink-0" x-text="v"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+            <!-- Action buttons -->
+            <div class="flex flex-col items-end gap-1.5 flex-shrink-0 pt-0.5">
+              <div class="flex items-center gap-1.5">
+                <button
+                  @click="viewHistoryRun(run.run_id)"
+                  class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
+                >View</button>
+                <button
+                  @click="deleteHistoryRun(run.run_id)"
+                  class="text-xs text-slate-400 hover:text-red-500 border border-slate-200 hover:border-red-200 px-2 py-1.5 rounded-lg transition-colors cursor-pointer"
+                  title="Delete this run"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+                </button>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <a
+                  :href="`/api/history/${run.run_id}/download-csv`"
+                  class="flex items-center gap-1 text-xs text-slate-500 hover:text-green-700 border border-slate-200 hover:border-green-300 bg-white hover:bg-green-50 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                  title="Download CSV outputs"
+                  download
+                >
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                  CSV
+                </a>
+                <a
+                  :href="`/api/history/${run.run_id}/download-zip`"
+                  class="flex items-center gap-1 text-xs text-slate-500 hover:text-amber-700 border border-slate-200 hover:border-amber-300 bg-white hover:bg-amber-50 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                  title="Download full artifact bundle (CSV + graphs + settings)"
+                  download
+                >
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                  ZIP
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<div class="fixed top-4 right-4 z-50" @click.away="accessOpen = false">
+
+  <!-- Gear trigger -->
+  <button
+    @click="accessOpen = !accessOpen"
+    class="w-9 h-9 rounded-full bg-white border border-slate-300 shadow-[0_2px_12px_rgba(15,23,42,0.12)] flex items-center justify-center text-slate-500 hover:text-slate-800 hover:border-slate-400 transition-colors duration-150 cursor-pointer"
+    :class="accessOpen ? 'border-amber-400 text-amber-500' : ''"
+    aria-label="Accessibility settings"
+  >
+    <svg class="w-4 h-4 transition-transform duration-300" :class="accessOpen ? 'rotate-45' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+    </svg>
+  </button>
+
+  <!-- Settings panel -->
+  <div
+    x-show="accessOpen"
+    x-cloak
+    class="settings-panel-enter absolute top-11 right-0 w-64 bg-white border border-slate-300 rounded-xl shadow-[0_4px_24px_rgba(15,23,42,0.14)] overflow-hidden"
+  >
+    <!-- Panel header -->
+    <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+      <svg class="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 1 1-12.728 0M12 3v9" />
+      </svg>
+      <p class="font-mono text-xs font-semibold text-slate-600 uppercase tracking-wider">Accessibility</p>
+    </div>
+
+    <div class="p-4 space-y-5">
+
+      <!-- Font size -->
+      <div>
+        <p class="text-xs font-medium text-slate-500 mb-2">Text size</p>
+        <div class="flex items-center gap-1.5">
+          <template x-for="opt in [['small','A−'],['default','A'],['large','A+']]" :key="opt[0]">
+            <button
+              @click="fontSize = opt[0]"
+              class="flex-1 py-1.5 rounded-lg border transition-all duration-150 cursor-pointer font-medium"
+              :class="fontSize === opt[0]
+                ? 'border-amber-400 bg-amber-50 text-amber-600'
+                : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'"
+              :style="opt[0] === 'small' ? 'font-size:11px' : opt[0] === 'large' ? 'font-size:16px' : 'font-size:13px'"
+              :aria-pressed="fontSize === opt[0]"
+              x-text="opt[1]"
+            ></button>
+          </template>
+        </div>
+      </div>
+
+      <!-- Dark mode -->
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-600">Dark mode</p>
+          <p class="text-xs text-slate-400">Switch to dark theme</p>
+        </div>
+        <button
+          @click="darkMode = !darkMode; if (darkMode) highContrast = false"
+          :aria-pressed="darkMode"
+          aria-label="Toggle dark mode"
+          class="cursor-pointer"
+        >
+          <div class="toggle-track" :class="darkMode ? 'on' : 'off'">
+            <div class="toggle-thumb"></div>
+          </div>
+        </button>
+      </div>
+
+      <!-- High contrast -->
+      <div class="flex items-center justify-between transition-opacity duration-200" :class="darkMode ? 'opacity-40' : 'opacity-100'">
+        <div>
+          <p class="text-xs font-medium text-slate-600">High contrast</p>
+          <p class="text-xs text-slate-400" x-text="darkMode ? 'Not available in dark mode' : 'Stronger borders &amp; darker text'"></p>
+        </div>
+        <button
+          @click="if (!darkMode) highContrast = !highContrast"
+          :aria-pressed="highContrast"
+          :aria-disabled="darkMode"
+          aria-label="Toggle high contrast"
+          :class="darkMode ? 'cursor-not-allowed' : 'cursor-pointer'"
+        >
+          <div class="toggle-track" :class="highContrast ? 'on' : 'off'">
+            <div class="toggle-thumb"></div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Reduce motion -->
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-600">Reduce motion</p>
+          <p class="text-xs text-slate-400">Disables animations</p>
+        </div>
+        <button
+          @click="reduceMotion = !reduceMotion"
+          :aria-pressed="reduceMotion"
+          aria-label="Toggle reduced motion"
+          class="cursor-pointer"
+        >
+          <div class="toggle-track" :class="reduceMotion ? 'on' : 'off'">
+            <div class="toggle-thumb"></div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Reset -->
+      <div class="pt-1 border-t border-slate-100">
+        <button
+          @click="fontSize = 'large'; highContrast = false; reduceMotion = false; darkMode = false;"
+          class="font-mono text-xs text-slate-400 hover:text-slate-600 transition-colors duration-150 cursor-pointer"
+        >
+          Reset to defaults
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
