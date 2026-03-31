@@ -64,6 +64,8 @@
       font-weight: 600;
       border-bottom-color: var(--accent);
     }
+    .step-nav .sn.sn-link { cursor: pointer; }
+    .step-nav .sn.sn-link:hover { color: var(--text-primary); }
 
     /* ── Typography helpers ───────────────────────────────────── */
     .label-caps {
@@ -415,12 +417,23 @@
     </p>
   </div>
 
-  <!-- Step breadcrumb -->
+  <!-- Step breadcrumb — clickable when the target step is reachable -->
   <nav class="step-nav" x-show="step !== 'error'">
-    <span class="sn" :class="{ active: step === 0, done: step > 0 }">01 · Upload</span>
-    <span class="sn" :class="{ active: step === 1, done: step > 1 }">02 · Configure</span>
-    <span class="sn" :class="{ active: step === 2, done: step > 2 }">03 · Running</span>
-    <span class="sn" :class="{ active: step === 3 }">04 · Results</span>
+    <span class="sn"
+      :class="{ active: step === 0, done: step > 0, 'sn-link': !isRunning }"
+      @click="!isRunning && (step = 0)"
+    >01 · Upload</span>
+    <span class="sn"
+      :class="{ active: step === 1, done: step > 1, 'sn-link': !isRunning && canProceed }"
+      @click="!isRunning && canProceed && (step = 1)"
+    >02 · Configure</span>
+    <span class="sn"
+      :class="{ active: step === 2 }"
+    >03 · Running</span>
+    <span class="sn"
+      :class="{ active: step === 3, 'sn-link': !isRunning && resultMetrics != null }"
+      @click="!isRunning && resultMetrics != null && (step = 3)"
+    >04 · Results</span>
   </nav>
 
 
